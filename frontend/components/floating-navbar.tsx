@@ -1,0 +1,208 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
+import { motion } from "framer-motion"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Menu, Briefcase, User, LogOut, Settings, Bell } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+
+interface FloatingNavbarProps {
+  userRole?: "student" | "recruiter" | null
+  userName?: string
+  userAvatar?: string
+}
+
+export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavbarProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  const handleLogout = () => {
+    router.push("/")
+  }
+
+  const studentNavItems = [
+    { href: "/student/dashboard", label: "Dashboard" },
+    { href: "/student/applications", label: "My Applications" },
+    { href: "/student/profile", label: "Profile" },
+  ]
+
+  const recruiterNavItems = [
+    { href: "/recruiter/dashboard", label: "Dashboard" },
+    { href: "/recruiter/post-job", label: "Post Job" },
+    { href: "/recruiter/applications", label: "Applications" },
+  ]
+
+  const navItems = userRole === "student" ? studentNavItems : recruiterNavItems
+
+  const NavContent = () => (
+    <>
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`text-sm font-medium transition-all duration-200 hover:text-primary relative ${
+            pathname === item.href ? "text-primary" : "text-muted-foreground"
+          }`}
+          onClick={() => setIsOpen(false)}
+        >
+          {item.label}
+          {pathname === item.href && (
+            <motion.div
+              className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full"
+              layoutId="activeTab"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+        </Link>
+      ))}
+    </>
+  )
+
+  if (!userRole) {
+    return (
+      <motion.nav
+        className={`fixed top-4 left-4 right-4 z-50 transition-all duration-300 ${
+          scrolled ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg" : "bg-transparent"
+        } rounded-2xl`}
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-2 group">
+            <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+              <Briefcase className="h-6 w-6 text-primary" />
+            </motion.div>
+            <span className="font-bold text-xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              CampusCogni
+            </span>
+          </Link>
+          <div className="flex items-center space-x-3">
+            <ThemeToggle />
+            <Button asChild variant="ghost" className="hover:bg-muted/50">
+              <Link href="/auth">Sign In</Link>
+            </Button>
+          </div>
+        </div>
+      </motion.nav>
+    )
+  }
+
+  return (
+    <motion.nav
+      className={`fixed top-4 left-4 right-4 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg"
+          : "bg-background/60 backdrop-blur-md border border-border/30"
+      } rounded-2xl`}
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-8">
+          <Link href="/" className="flex items-center space-x-2 group">
+            <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+              <Briefcase className="h-6 w-6 text-primary" />
+            </motion.div>
+            <span className="font-bold text-xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              CampusCogni
+            </span>
+          </Link>
+          <div className="hidden md:flex items-center space-x-6">
+            <NavContent />
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <ThemeToggle />
+          <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
+            <Bell className="h-4 w-4" />
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-primary">
+              3
+            </Badge>
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted/50">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={userAvatar || "/placeholder.svg"} alt={userName} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {userName?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-56 bg-background/95 backdrop-blur-xl border-border/50"
+              align="end"
+              forceMount
+            >
+              <div className="flex items-center justify-start gap-2 p-2">
+                <div className="flex flex-col space-y-1 leading-none">
+                  <p className="font-medium">{userName}</p>
+                  <p className="w-[200px] truncate text-sm text-muted-foreground">
+                    {userRole === "student" ? "Student" : "Recruiter"}
+                  </p>
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href={`/${userRole}/profile`}>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden hover:bg-muted/50">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl">
+              <div className="flex flex-col space-y-6 mt-8">
+                <NavContent />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+    </motion.nav>
+  )
+}
