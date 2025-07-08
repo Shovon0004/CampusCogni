@@ -138,6 +138,13 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Post Job button - shows for everyone but redirects based on authentication */}
+          <Button asChild variant="default" size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
+            <Link href={userRole === "recruiter" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Post Job
+            </Link>
+          </Button>
           <ThemeToggle />
           <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
             <Bell className="h-4 w-4" />
@@ -197,6 +204,12 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl">
               <div className="flex flex-col space-y-6 mt-8">
+                <Button asChild variant="default" className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg font-semibold">
+                  <Link href={userRole === "recruiter" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                    <Briefcase className="h-4 w-4" />
+                    Post Job
+                  </Link>
+                </Button>
                 <NavContent />
               </div>
             </SheetContent>

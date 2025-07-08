@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BackgroundPaths } from "@/components/background-paths"
-import { Navbar } from "@/components/navbar"
+import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
 import { Briefcase, Mail, Phone, Building, Globe } from "lucide-react"
 import { apiClient } from "@/lib/api"
@@ -74,7 +74,7 @@ export default function RecruiterRegisterPage() {
   return (
     <div className="min-h-screen bg-background">
       <BackgroundPaths />
-      <Navbar />
+      <FloatingNavbar />
 
       <div className="container mx-auto px-4 py-8">
         <motion.div

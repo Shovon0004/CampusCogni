@@ -49,6 +49,21 @@ class ApiClient {
     })
   }
 
+  async getStudentStats(userId: string) {
+    return this.request(`/students/${userId}/stats`)
+  }
+
+  async getStudentCV(userId: string) {
+    return this.request(`/students/${userId}/cv`)
+  }
+
+  async updateStudentCV(userId: string, cvData: any) {
+    return this.request(`/students/${userId}/cv`, {
+      method: 'PUT',
+      body: JSON.stringify(cvData),
+    })
+  }
+
   async getApplications(userId: string) {
     return this.request(`/applications?userId=${userId}`)
   }
@@ -78,6 +93,17 @@ class ApiClient {
   }
 
   // Recruiter APIs
+  async getRecruiterProfile(userId: string) {
+    return this.request(`/recruiters/${userId}`)
+  }
+
+  async updateRecruiterProfile(userId: string, data: any) {
+    return this.request(`/recruiters/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
   async getRecruiterJobs(recruiterId: string) {
     return this.request(`/recruiters/${recruiterId}/jobs`)
   }

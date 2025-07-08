@@ -28,7 +28,12 @@ export default function AuthPage() {
   useEffect(() => {
     // Redirect if already logged in
     if (user) {
-      router.push(user.role === 'STUDENT' ? '/student/dashboard' : '/recruiter/dashboard')
+      const redirectParam = searchParams.get("redirect")
+      if (user.role === 'RECRUITER' && redirectParam === "post-job") {
+        router.push('/recruiter/post-job')
+      } else {
+        router.push(user.role === 'STUDENT' ? '/student/dashboard' : '/recruiter/dashboard')
+      }
       return
     }
 
