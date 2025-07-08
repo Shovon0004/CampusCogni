@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,72 +13,113 @@ import { GeometricBackground } from "@/components/geometric-background"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
 import { User, Mail, Phone, MapPin, GraduationCap, Award, Briefcase, Edit, Save, Download, Eye } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api"
 
 export default function StudentProfilePage() {
   const { toast } = useToast()
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
   const [profile, setProfile] = useState({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@college.edu",
-    phone: "+1 (555) 123-4567",
-    college: "Massachusetts Institute of Technology",
-    course: "Computer Science",
-    year: "3rd Year",
-    cgpa: "8.5",
-    location: "Boston, MA",
-    bio: "Passionate computer science student with experience in full-stack development and machine learning.",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    college: "",
+    course: "",
+    year: "",
+    cgpa: "",
+    location: "",
+    bio: "",
   })
 
-  const skills = [
-    "JavaScript",
-    "Python",
-    "React",
-    "Node.js",
-    "Machine Learning",
-    "SQL",
-    "Git",
-    "AWS",
-    "Docker",
-    "TypeScript",
-  ]
+  const [skills, setSkills] = useState<string[]>([])
+  const [projects, setProjects] = useState<any[]>([])
+  const [experience, setExperience] = useState<any[]>([])
 
-  const projects = [
-    {
-      title: "E-commerce Platform",
-      description: "Full-stack web application built with React and Node.js",
-      technologies: ["React", "Node.js", "MongoDB", "Express"],
-      link: "https://github.com/johndoe/ecommerce",
-    },
-    {
-      title: "ML Recommendation System",
-      description: "Machine-learning model for product recommendations",
-      technologies: ["Python", "TensorFlow", "Pandas"],
-      link: "https://github.com/johndoe/ml-recommender",
-    },
-  ]
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth')
+      return
+    }
+    
+    if (user && user.role !== 'STUDENT') {
+      router.push('/recruiter/dashboard')
+      return
+    }
 
-  const experience = [
-    {
-      company: "Tech Startup Inc.",
-      role: "Software Development Intern",
-      duration: "Jun 2023 – Aug 2023",
-      description: "Developed web applications using React and Node.js; collaborated with cross-functional teams.",
-    },
-  ]
+    if (user) {
+      fetchProfile()
+    }
+  }, [user, loading, router])
 
-  const handleSave = () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
+  const fetchProfile = async () => {
+    try {
+      setLoadingProfile(true)
+      const response = await apiClient.getStudentProfile(user!.id)
+      
+      // Update profile with backend data
+      setProfile({
+        firstName: response.firstName || "",
+        lastName: response.lastName || "",
+        email: user!.email || "",
+        phone: response.phone || "",
+        college: response.college || "",
+        course: response.course || "",
+        year: response.year || "",
+        cgpa: response.cgpa?.toString() || "",
+        location: response.location || "",
+        bio: response.bio || "",
+      })
+
+      setExperience(response.experiences || [])
+      setProjects(response.projects || [])
+      setSkills(response.skills || [])
+      
+      setSkills(response.profile?.skills || [])
+      setProjects(response.projects || [])
+      setExperience(response.experience || [])
+    } catch (error) {
+      console.error('Failed to fetch profile:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load profile data.",
+      })
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true)
+      await apiClient.updateStudentProfile(user!.id, {
+        ...profile,
+        cgpa: parseFloat(profile.cgpa) || 0,
+        skills,
+        projects,
+        experience
+      })
+      
       setIsEditing(false)
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
       })
-    }, 1200)
+    } catch (error) {
+      console.error('Failed to update profile:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleDownloadCV = () => {
@@ -91,7 +132,7 @@ export default function StudentProfilePage() {
   return (
     <div className="min-h-screen">
       <GeometricBackground />
-      <FloatingNavbar userRole="student" userName="John Doe" />
+      <FloatingNavbar userRole="student" userName={user?.profile?.name || user?.email || "Student"} />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -288,7 +329,7 @@ export default function StudentProfilePage() {
                       <h4 className="font-semibold text-lg mb-2">{project.title}</h4>
                       <p className="text-muted-foreground mb-3">{project.description}</p>
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {project.technologies.map((tech) => (
+                        {project.technologies?.map((tech: string) => (
                           <Badge key={tech} variant="outline" className="text-xs">
                             {tech}
                           </Badge>

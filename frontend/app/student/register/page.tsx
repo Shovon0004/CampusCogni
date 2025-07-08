@@ -14,13 +14,19 @@ import { BackgroundPaths } from "@/components/background-paths"
 import { Navbar } from "@/components/navbar"
 import { useToast } from "@/hooks/use-toast"
 import { Upload, User, Mail, Phone, FileText } from "lucide-react"
+import { apiClient } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function StudentRegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { setUserFromToken } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
   const [resume, setResume] = useState<string | null>(null)
+  const [college, setCollege] = useState("")
+  const [course, setCourse] = useState("")
+  const [year, setYear] = useState("")
 
   const handleFileUpload = (type: "photo" | "resume", file: File) => {
     // Mock file upload
@@ -40,14 +46,43 @@ export default function StudentRegisterPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Mock registration
-    setTimeout(() => {
+    try {
+      const formData = new FormData(e.target as HTMLFormElement)
+      const studentData = {
+        email: formData.get('email') as string,
+        password: formData.get('password') as string,
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        phone: formData.get('phone') as string,
+        college: college,
+        course: course,
+        year: year,
+        cgpa: parseFloat(formData.get('cgpa') as string),
+      }
+
+      const result = await apiClient.registerStudent(studentData)
+      
+      // Log the user in automatically
+      if (result.token && result.user) {
+        setUserFromToken(result.token, result.user)
+      }
+
       toast({
         title: "Registration Successful",
         description: "Welcome to CampusCogni! Let's build your CV.",
       })
+      
       router.push("/student/cv-builder")
-    }, 2000)
+    } catch (error) {
+      console.error('Registration failed:', error)
+      toast({
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : "Please check your information and try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -76,11 +111,11 @@ export default function StudentRegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John" required />
+                    <Input id="firstName" name="firstName" placeholder="John" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe" required />
+                    <Input id="lastName" name="lastName" placeholder="Doe" required />
                   </div>
                 </div>
 
@@ -88,30 +123,35 @@ export default function StudentRegisterPage() {
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="john.doe@college.edu" className="pl-10" required />
+                    <Input id="email" name="email" type="email" placeholder="john.doe@college.edu" className="pl-10" required />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" name="password" type="password" placeholder="Enter your password" required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
+                    <Input id="phone" name="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="college">College/University</Label>
-                  <Select required>
+                  <Select value={college} onValueChange={setCollege} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select your college" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mit">MIT</SelectItem>
-                      <SelectItem value="stanford">Stanford University</SelectItem>
-                      <SelectItem value="harvard">Harvard University</SelectItem>
-                      <SelectItem value="berkeley">UC Berkeley</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="MIT">MIT</SelectItem>
+                      <SelectItem value="Stanford University">Stanford University</SelectItem>
+                      <SelectItem value="Harvard University">Harvard University</SelectItem>
+                      <SelectItem value="UC Berkeley">UC Berkeley</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -119,12 +159,12 @@ export default function StudentRegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="course">Course</Label>
-                    <Select required>
+                    <Select value={course} onValueChange={setCourse} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Select course" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cse">Computer Science</SelectItem>
+                        <SelectItem value="Computer Science">Computer Science</SelectItem>
                         <SelectItem value="ece">Electronics & Communication</SelectItem>
                         <SelectItem value="me">Mechanical Engineering</SelectItem>
                         <SelectItem value="ce">Civil Engineering</SelectItem>
@@ -135,16 +175,16 @@ export default function StudentRegisterPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="year">Year</Label>
-                    <Select required>
+                    <Select value={year} onValueChange={setYear} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1st Year</SelectItem>
-                        <SelectItem value="2">2nd Year</SelectItem>
-                        <SelectItem value="3">3rd Year</SelectItem>
-                        <SelectItem value="4">4th Year</SelectItem>
-                        <SelectItem value="graduate">Graduate</SelectItem>
+                        <SelectItem value="1st Year">1st Year</SelectItem>
+                        <SelectItem value="2nd Year">2nd Year</SelectItem>
+                        <SelectItem value="3rd Year">3rd Year</SelectItem>
+                        <SelectItem value="4th Year">4th Year</SelectItem>
+                        <SelectItem value="Graduate">Graduate</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -152,7 +192,7 @@ export default function StudentRegisterPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="cgpa">CGPA</Label>
-                  <Input id="cgpa" type="number" step="0.01" min="0" max="10" placeholder="8.5" required />
+                  <Input id="cgpa" name="cgpa" type="number" step="0.01" min="0" max="10" placeholder="8.5" required />
                 </div>
 
                 <div className="space-y-4">

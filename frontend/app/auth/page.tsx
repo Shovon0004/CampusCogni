@@ -15,42 +15,72 @@ import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
 import { useToast } from "@/hooks/use-toast"
 import { Chrome, Mail, Lock, User, Briefcase } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { login, user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [role, setRole] = useState<"student" | "recruiter">("student")
 
   useEffect(() => {
+    // Redirect if already logged in
+    if (user) {
+      router.push(user.role === 'STUDENT' ? '/student/dashboard' : '/recruiter/dashboard')
+      return
+    }
+
     const roleParam = searchParams.get("role")
     if (roleParam === "recruiter") {
       setRole("recruiter")
     }
-  }, [searchParams])
+
+    // Check for registration success message
+    const message = searchParams.get("message")
+    if (message === "registration-success") {
+      toast({
+        title: "Registration Successful",
+        description: "Please sign in with your new account.",
+      })
+    }
+  }, [searchParams, user, router, toast])
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      toast({
-        title: "Login Successful",
-        description: "Welcome to CampusCogni!",
-      })
-      router.push(role === "student" ? "/student/dashboard" : "/recruiter/dashboard")
-    }, 1500)
+    // TODO: Implement Google OAuth with backend
+    toast({
+      title: "Feature Coming Soon",
+      description: "Google login will be available soon. Please use email login for now.",
+    })
   }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setTimeout(() => {
+
+    try {
+      const formData = new FormData(e.target as HTMLFormElement)
+      const email = formData.get('email') as string
+      const password = formData.get('password') as string
+
+      await login(email, password)
+      
       toast({
         title: "Login Successful",
         description: "Welcome back!",
       })
-      router.push(role === "student" ? "/student/dashboard" : "/recruiter/dashboard")
-    }, 1500)
+      
+      // The useEffect will handle redirection based on user role
+    } catch (error) {
+      console.error('Login failed:', error)
+      toast({
+        title: "Login Failed",
+        description: "Please check your email and password.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleRegister = () => {
@@ -124,6 +154,7 @@ export default function AuthPage() {
                         <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="email"
+                          name="email"
                           type="email"
                           placeholder="Enter your email"
                           className="pl-10 bg-background/50 border-border/50"
@@ -138,6 +169,7 @@ export default function AuthPage() {
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
                           id="password"
+                          name="password"
                           type="password"
                           placeholder="Enter your password"
                           className="pl-10 bg-background/50 border-border/50"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GeometricBackground } from "@/components/geometric-background"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Search, Filter, Calendar, MapPin, Building, Eye, MessageSquare, Download } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api"
 
 interface Application {
   id: string
@@ -17,75 +20,79 @@ interface Application {
   company: string
   location: string
   appliedDate: string
-  status: "Applied" | "Under Review" | "Interview Scheduled" | "Rejected" | "Accepted"
-  type: "Full-time" | "Internship" | "Part-time"
+  status: "APPLIED" | "UNDER_REVIEW" | "SHORTLISTED" | "INTERVIEW_SCHEDULED" | "REJECTED" | "HIRED"
+  type: "FULL_TIME" | "INTERNSHIP" | "PART_TIME"
   stipend: string
   nextStep?: string
   interviewDate?: string
 }
 
-const mockApplications: Application[] = [
-  {
-    id: "1",
-    jobTitle: "Software Engineering Intern",
-    company: "Google",
-    location: "Mountain View, CA",
-    appliedDate: "2024-01-15",
-    status: "Interview Scheduled",
-    type: "Internship",
-    stipend: "$8,000/month",
-    nextStep: "Technical Interview",
-    interviewDate: "2024-01-25",
-  },
-  {
-    id: "2",
-    jobTitle: "Frontend Developer",
-    company: "Microsoft",
-    location: "Seattle, WA",
-    appliedDate: "2024-01-10",
-    status: "Under Review",
-    type: "Full-time",
-    stipend: "$120,000/year",
-    nextStep: "HR Review",
-  },
-  {
-    id: "3",
-    jobTitle: "Data Science Intern",
-    company: "Netflix",
-    location: "Los Gatos, CA",
-    appliedDate: "2024-01-08",
-    status: "Accepted",
-    type: "Internship",
-    stipend: "$7,500/month",
-    nextStep: "Offer Letter Sent",
-  },
-  {
-    id: "4",
-    jobTitle: "Mobile App Developer",
-    company: "Uber",
-    location: "San Francisco, CA",
-    appliedDate: "2024-01-05",
-    status: "Rejected",
-    type: "Full-time",
-    stipend: "$110,000/year",
-  },
-  {
-    id: "5",
-    jobTitle: "Backend Engineer Intern",
-    company: "Airbnb",
-    location: "San Francisco, CA",
-    appliedDate: "2024-01-12",
-    status: "Applied",
-    type: "Internship",
-    stipend: "$8,500/month",
-    nextStep: "Application Review",
-  },
-]
-
 export default function StudentApplicationsPage() {
-  const [applications] = useState<Application[]>(mockApplications)
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [applications, setApplications] = useState<Application[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [loadingApplications, setLoadingApplications] = useState(true)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth')
+      return
+    }
+    
+    if (user && user.role !== 'STUDENT') {
+      router.push('/recruiter/dashboard')
+      return
+    }
+
+    if (user) {
+      fetchApplications()
+    }
+  }, [user, loading, router])
+
+  const fetchApplications = async () => {
+    try {
+      setLoadingApplications(true)
+      const response = await apiClient.getApplications(user!.id)
+      
+      // Transform backend data to match frontend interface
+      const transformedApplications = response.map((app: any) => ({
+        id: app.id,
+        jobTitle: app.job?.title || 'Unknown Position',
+        company: app.job?.company || 'Unknown Company',
+        location: app.job?.location || 'Unknown Location',
+        appliedDate: new Date(app.appliedAt).toLocaleDateString(),
+        status: app.status,
+        type: app.job?.type || 'FULL_TIME',
+        stipend: app.job?.stipend || 'Not specified',
+        nextStep: getNextStep(app.status),
+      }))
+      
+      setApplications(transformedApplications)
+    } catch (error) {
+      console.error('Failed to fetch applications:', error)
+    } finally {
+      setLoadingApplications(false)
+    }
+  }
+
+  const getNextStep = (status: string) => {
+    switch (status) {
+      case 'APPLIED':
+        return 'Application Review'
+      case 'UNDER_REVIEW':
+        return 'HR Review'
+      case 'SHORTLISTED':
+        return 'Interview Scheduling'
+      case 'INTERVIEW_SCHEDULED':
+        return 'Prepare for Interview'
+      case 'HIRED':
+        return 'Onboarding Process'
+      default:
+        return undefined
+    }
+  }
 
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
@@ -97,32 +104,53 @@ export default function StudentApplicationsPage() {
 
   const getStatusColor = (status: Application["status"]) => {
     switch (status) {
-      case "Applied":
+      case "APPLIED":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-      case "Under Review":
+      case "UNDER_REVIEW":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-      case "Interview Scheduled":
+      case "SHORTLISTED":
+        return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
+      case "INTERVIEW_SCHEDULED":
         return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-      case "Accepted":
+      case "HIRED":
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-      case "Rejected":
+      case "REJECTED":
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
     }
   }
 
+  const getStatusLabel = (status: Application["status"]) => {
+    switch (status) {
+      case "APPLIED":
+        return "Applied"
+      case "UNDER_REVIEW":
+        return "Under Review"
+      case "SHORTLISTED":
+        return "Shortlisted"
+      case "INTERVIEW_SCHEDULED":
+        return "Interview Scheduled"
+      case "HIRED":
+        return "Hired"
+      case "REJECTED":
+        return "Rejected"
+      default:
+        return status
+    }
+  }
+
   const stats = {
     total: applications.length,
-    pending: applications.filter((app) => ["Applied", "Under Review"].includes(app.status)).length,
-    interviews: applications.filter((app) => app.status === "Interview Scheduled").length,
-    accepted: applications.filter((app) => app.status === "Accepted").length,
+    pending: applications.filter((app) => ["APPLIED", "UNDER_REVIEW"].includes(app.status)).length,
+    interviews: applications.filter((app) => app.status === "INTERVIEW_SCHEDULED").length,
+    accepted: applications.filter((app) => app.status === "HIRED").length,
   }
 
   return (
     <div className="min-h-screen">
       <GeometricBackground />
-      <FloatingNavbar userRole="student" userName="John Doe" />
+      <FloatingNavbar userRole="student" userName={user?.profile?.name || user?.email || "Student"} />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -214,7 +242,39 @@ export default function StudentApplicationsPage() {
 
           {/* Applications List */}
           <div className="space-y-6">
-            {filteredApplications.map((application, index) => (
+            {loadingApplications ? (
+              // Loading state
+              Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
+                  <CardContent className="p-8">
+                    <div className="animate-pulse">
+                      <div className="h-6 bg-gray-300 rounded w-64 mb-2"></div>
+                      <div className="h-4 bg-gray-300 rounded w-32 mb-4"></div>
+                      <div className="flex gap-4 mb-4">
+                        <div className="h-4 bg-gray-300 rounded w-20"></div>
+                        <div className="h-4 bg-gray-300 rounded w-24"></div>
+                        <div className="h-4 bg-gray-300 rounded w-16"></div>
+                      </div>
+                      <div className="h-8 bg-gray-300 rounded w-24"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredApplications.length === 0 ? (
+              // Empty state
+              <Card className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
+                <CardContent className="p-12 text-center">
+                  <div className="text-6xl mb-4">📋</div>
+                  <h3 className="text-xl font-semibold mb-2">No applications found</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || filterStatus !== "all" 
+                      ? "Try adjusting your search filters" 
+                      : "You haven't applied to any jobs yet. Start exploring opportunities!"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredApplications.map((application, index) => (
               <motion.div
                 key={application.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -235,7 +295,7 @@ export default function StudentApplicationsPage() {
                             </div>
                           </div>
                           <Badge className={`${getStatusColor(application.status)} border-0 font-medium`}>
-                            {application.status}
+                            {getStatusLabel(application.status)}
                           </Badge>
                         </div>
 
@@ -283,7 +343,7 @@ export default function StudentApplicationsPage() {
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Message HR
                         </Button>
-                        {application.status === "Accepted" && (
+                        {application.status === "HIRED" && (
                           <Button className="w-full shadow-lg hover:shadow-xl transition-all duration-300">
                             <Download className="h-4 w-4 mr-2" />
                             Download Offer
@@ -294,20 +354,9 @@ export default function StudentApplicationsPage() {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
+              ))
+            )}
           </div>
-
-          {filteredApplications.length === 0 && (
-            <Card className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
-              <CardContent className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                  <Search className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">No applications found</h3>
-                <p className="text-muted-foreground">Try adjusting your search or filter criteria.</p>
-              </CardContent>
-            </Card>
-          )}
         </motion.div>
       </div>
     </div>

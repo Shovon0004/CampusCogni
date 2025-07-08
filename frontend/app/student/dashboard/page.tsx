@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,13 +11,16 @@ import { GridBackground } from "@/components/grid-background"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
 import { Search, Filter, MapPin, Clock, DollarSign, Bookmark, BookmarkCheck, TrendingUp } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api"
 
 interface Job {
   id: string
   title: string
   company: string
   location: string
-  type: "Full-time" | "Internship" | "Part-time"
+  type: "FULL_TIME" | "INTERNSHIP" | "PART_TIME"
   stipend: string
   description: string
   requirements: string[]
@@ -26,72 +29,74 @@ interface Job {
   saved: boolean
 }
 
-const mockJobs: Job[] = [
-  {
-    id: "1",
-    title: "Software Engineering Intern",
-    company: "Google",
-    location: "Mountain View, CA",
-    type: "Internship",
-    stipend: "$8,000/month",
-    description:
-      "Join our team to work on cutting-edge technologies and make an impact on billions of users worldwide.",
-    requirements: ["Computer Science", "3rd Year", "CGPA > 8.0", "JavaScript", "Python"],
-    postedDate: "2 days ago",
-    applied: false,
-    saved: true,
-  },
-  {
-    id: "2",
-    title: "Frontend Developer",
-    company: "Microsoft",
-    location: "Seattle, WA",
-    type: "Full-time",
-    stipend: "$120,000/year",
-    description: "Build amazing user experiences for Microsoft's flagship products.",
-    requirements: ["Computer Science", "4th Year", "CGPA > 7.5", "React", "TypeScript"],
-    postedDate: "1 week ago",
-    applied: true,
-    saved: false,
-  },
-  {
-    id: "3",
-    title: "Data Science Intern",
-    company: "Netflix",
-    location: "Los Gatos, CA",
-    type: "Internship",
-    stipend: "$7,500/month",
-    description: "Work with massive datasets to improve recommendation algorithms.",
-    requirements: ["Computer Science", "3rd Year", "CGPA > 8.5", "Python", "Machine Learning"],
-    postedDate: "3 days ago",
-    applied: false,
-    saved: false,
-  },
-  {
-    id: "4",
-    title: "Mobile App Developer",
-    company: "Uber",
-    location: "San Francisco, CA",
-    type: "Full-time",
-    stipend: "$110,000/year",
-    description: "Build mobile applications that connect millions of riders and drivers.",
-    requirements: ["Computer Science", "4th Year", "CGPA > 7.0", "React Native", "Swift"],
-    postedDate: "5 days ago",
-    applied: false,
-    saved: true,
-  },
-]
-
 export default function StudentDashboard() {
-  const [jobs, setJobs] = useState<Job[]>(mockJobs)
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [jobs, setJobs] = useState<Job[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
+  const [loadingJobs, setLoadingJobs] = useState(true)
 
-  const handleApply = (jobId: string) => {
-    setJobs(jobs.map((job) => (job.id === jobId ? { ...job, applied: true } : job)))
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth')
+      return
+    }
+    
+    if (user && user.role !== 'STUDENT') {
+      router.push('/recruiter/dashboard')
+      return
+    }
+
+    if (user) {
+      fetchJobs()
+    }
+  }, [user, loading, router])
+
+  const fetchJobs = async () => {
+    try {
+      setLoadingJobs(true)
+      const response = await apiClient.getJobs()
+      
+      // Transform backend data to match frontend interface
+      const transformedJobs = response.jobs.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        company: job.recruiter?.company || 'Unknown Company',
+        location: job.location,
+        type: job.type,
+        stipend: job.stipend,
+        description: job.description,
+        requirements: job.requirements || [],
+        postedDate: new Date(job.createdAt).toLocaleDateString(),
+        applied: job.applications?.some((app: any) => app.studentId === user?.id) || false,
+        saved: false, // TODO: Implement saved jobs feature
+      }))
+      
+      setJobs(transformedJobs)
+    } catch (error) {
+      console.error('Failed to fetch jobs:', error)
+    } finally {
+      setLoadingJobs(false)
+    }
   }
 
-  const handleSave = (jobId: string) => {
+  const handleApply = async (jobId: string) => {
+    try {
+      if (!user) return
+      
+      await apiClient.applyToJob(jobId, user.id)
+      
+      // Update local state
+      setJobs(jobs.map((job) => (job.id === jobId ? { ...job, applied: true } : job)))
+    } catch (error) {
+      console.error('Failed to apply to job:', error)
+      // TODO: Show error message to user
+    }
+  }
+
+  const handleSave = async (jobId: string) => {
+    // TODO: Implement save job functionality in backend
     setJobs(jobs.map((job) => (job.id === jobId ? { ...job, saved: !job.saved } : job)))
   }
 
@@ -113,7 +118,7 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen">
       <GridBackground />
-      <FloatingNavbar userRole="student" userName="John Doe" />
+      <FloatingNavbar userRole="student" userName={user?.profile?.name || user?.email || "Student"} />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -129,7 +134,7 @@ export default function StudentDashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              Welcome back, <span className="text-primary">John!</span>
+              Welcome back, <span className="text-primary">{user?.profile?.name?.split(' ')[0] || 'Student'}!</span>
             </motion.h1>
             <motion.p
               className="text-xl text-muted-foreground"
@@ -203,7 +208,44 @@ export default function StudentDashboard() {
 
           {/* Job Listings */}
           <div className="space-y-6">
-            {filteredJobs.map((job, index) => (
+            {loadingJobs ? (
+              // Loading state
+              Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
+                  <CardContent className="p-8">
+                    <div className="animate-pulse">
+                      <div className="h-6 bg-gray-300 rounded w-64 mb-2"></div>
+                      <div className="h-4 bg-gray-300 rounded w-32 mb-4"></div>
+                      <div className="flex gap-4 mb-4">
+                        <div className="h-4 bg-gray-300 rounded w-20"></div>
+                        <div className="h-4 bg-gray-300 rounded w-24"></div>
+                        <div className="h-4 bg-gray-300 rounded w-16"></div>
+                      </div>
+                      <div className="h-16 bg-gray-300 rounded w-full mb-4"></div>
+                      <div className="flex gap-2 mb-4">
+                        <div className="h-6 bg-gray-300 rounded w-16"></div>
+                        <div className="h-6 bg-gray-300 rounded w-20"></div>
+                        <div className="h-6 bg-gray-300 rounded w-18"></div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredJobs.length === 0 ? (
+              // Empty state
+              <Card className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
+                <CardContent className="p-12 text-center">
+                  <div className="text-6xl mb-4">🔍</div>
+                  <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || filterType !== "all" 
+                      ? "Try adjusting your search filters" 
+                      : "No job opportunities are available at the moment. Check back later!"}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredJobs.map((job, index) => (
               <motion.div
                 key={job.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -289,20 +331,9 @@ export default function StudentDashboard() {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
+              ))
+            )}
           </div>
-
-          {filteredJobs.length === 0 && (
-            <Card className="bg-background/60 backdrop-blur-xl border-0 shadow-lg">
-              <CardContent className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                  <Search className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
-                <p className="text-muted-foreground">Try adjusting your search or filter criteria.</p>
-              </CardContent>
-            </Card>
-          )}
         </motion.div>
       </div>
 

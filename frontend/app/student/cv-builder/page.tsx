@@ -83,6 +83,14 @@ export default function CVBuilderPage() {
     }, 2000)
   }
 
+  const handleSkip = () => {
+    toast({
+      title: "CV Skipped",
+      description: "You can complete your CV later from your profile.",
+    })
+    router.push("/student/dashboard")
+  }
+
   const renderStepContent = () => {
     const step = cvSteps[currentStep]
 
@@ -349,10 +357,15 @@ export default function CVBuilderPage() {
               </div>
 
               <div className="flex justify-between">
-                <Button onClick={handlePrevious} disabled={currentStep === 0} variant="outline">
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Previous
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handlePrevious} disabled={currentStep === 0} variant="outline">
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
+                  <Button onClick={handleSkip} variant="ghost">
+                    Skip for now
+                  </Button>
+                </div>
 
                 {currentStep === cvSteps.length - 1 ? (
                   <Button onClick={handleFinish}>Finish & Save CV</Button>
