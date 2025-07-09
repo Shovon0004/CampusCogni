@@ -35,11 +35,11 @@ interface JobPost {
 
 interface Application {
   id: string
-  studentName: string
+  applicantName: string
   jobTitle: string
   status: string
   appliedDate: string
-  student: {
+  applicant: {
     profile: {
       course: string
       year: string
@@ -68,7 +68,7 @@ export default function RecruiterDashboard() {
     }
     
     if (user && user.role !== 'RECRUITER') {
-      router.push('/student/dashboard')
+      router.push('/user/dashboard')
       return
     }
 
@@ -81,76 +81,51 @@ export default function RecruiterDashboard() {
     try {
       setIsLoading(true)
       
-      // Mock data for now - replace with actual API calls
-      const mockStats = {
-        totalJobs: 5,
-        totalApplications: 47,
-        pendingApplications: 23,
-        acceptedApplications: 8
+      // Fetch recruiter's jobs from backend
+      const jobsResponse = await apiClient.getRecruiterJobs(user!.id)
+      const recruiterJobs = jobsResponse.data || []
+      
+      // Fetch applications for recruiter's jobs
+      const applicationsResponse = await apiClient.getRecruiterApplications(user!.id)
+      const recruiterApplications = applicationsResponse.data || []
+      
+      // Transform jobs data
+      const transformedJobs: JobPost[] = recruiterJobs.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        type: job.type,
+        location: job.location,
+        applications: job._count?.applications || 0,
+        status: job.status === 'ACTIVE' ? 'Active' : 'Inactive',
+        datePosted: new Date(job.createdAt).toISOString().split('T')[0]
+      }))
+      
+      // Transform applications data
+      const transformedApplications: Application[] = recruiterApplications.map((app: any) => ({
+        id: app.id,
+        applicantName: `${app.student?.firstName || 'Unknown'} ${app.student?.lastName || 'User'}`,
+        jobTitle: app.job?.title || 'Unknown Position',
+        status: app.status.toLowerCase(),
+        appliedDate: new Date(app.appliedAt).toISOString().split('T')[0],
+        applicant: {
+          profile: {
+            course: app.student?.course || 'Unknown Course',
+            year: app.student?.year || 'Unknown Year'
+          }
+        }
+      }))
+      
+      // Calculate stats
+      const stats = {
+        totalJobs: transformedJobs.length,
+        totalApplications: transformedApplications.length,
+        pendingApplications: transformedApplications.filter(app => ['applied', 'under_review'].includes(app.status)).length,
+        acceptedApplications: transformedApplications.filter(app => app.status === 'accepted').length
       }
 
-      const mockJobs: JobPost[] = [
-        {
-          id: "1",
-          title: "Software Engineering Intern",
-          type: "Internship", 
-          location: "San Francisco, CA",
-          applications: 12,
-          status: "Active",
-          datePosted: "2025-01-05"
-        },
-        {
-          id: "2", 
-          title: "Data Science Intern",
-          type: "Internship",
-          location: "Remote",
-          applications: 8,
-          status: "Active", 
-          datePosted: "2025-01-03"
-        },
-        {
-          id: "3",
-          title: "Product Manager Trainee",
-          type: "Full-time",
-          location: "New York, NY", 
-          applications: 15,
-          status: "Active",
-          datePosted: "2025-01-01"
-        }
-      ]
-
-      const mockApplications: Application[] = [
-        {
-          id: "1",
-          studentName: "John Doe",
-          jobTitle: "Software Engineering Intern", 
-          status: "pending",
-          appliedDate: "2025-01-06",
-          student: {
-            profile: {
-              course: "Computer Science",
-              year: "3rd Year"
-            }
-          }
-        },
-        {
-          id: "2",
-          studentName: "Jane Smith", 
-          jobTitle: "Data Science Intern",
-          status: "pending",
-          appliedDate: "2025-01-05",
-          student: {
-            profile: {
-              course: "Data Science",
-              year: "4th Year"
-            }
-          }
-        }
-      ]
-
-      setStats(mockStats)
-      setRecentJobs(mockJobs)
-      setRecentApplications(mockApplications)
+      setStats(stats)
+      setRecentJobs(transformedJobs)
+      setRecentApplications(transformedApplications)
 
     } catch (error) {
       toast({
@@ -177,7 +152,7 @@ export default function RecruiterDashboard() {
   return (
     <div className="min-h-screen">
       <BackgroundPaths />
-      <FloatingNavbar userRole="recruiter" userName={user?.email || "Recruiter"} />
+      <FloatingNavbar userRole="RECRUITER" userName={user?.email || "Recruiter"} />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -300,10 +275,10 @@ export default function RecruiterDashboard() {
                   {recentApplications.map((application) => (
                     <div key={application.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <h4 className="font-semibold">{application.studentName}</h4>
+                        <h4 className="font-semibold">{application.applicantName}</h4>
                         <p className="text-sm text-muted-foreground">{application.jobTitle}</p>
                         <p className="text-sm text-muted-foreground">
-                          {application.student.profile.course} • {application.student.profile.year}
+                          {application.applicant.profile.course} • {application.applicant.profile.year}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

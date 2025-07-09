@@ -16,6 +16,15 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: response.statusText }))
+      
+      // If user ID is invalid, clear cached auth data
+      if (error.error === 'Invalid user ID format' || error.error === 'User not found') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('userData')
+        window.location.href = '/auth'
+        return
+      }
+      
       throw new Error(error.error || `API Error: ${response.statusText}`)
     }
 
@@ -23,10 +32,10 @@ class ApiClient {
   }
 
   // Authentication
-  async registerStudent(data: any) {
+  async registerUser(data: any) {
     return this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ ...data, role: 'STUDENT' }),
+      body: JSON.stringify({ ...data, role: 'USER' }),
     })
   }
 
@@ -37,34 +46,41 @@ class ApiClient {
     })
   }
 
-  // Student APIs
-  async getStudentProfile(id: string) {
+  async login(email: string, password: string) {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+  }
+
+  // User APIs
+  async getUserProfile(id: string) {
     return this.request(`/students/${id}`)
   }
 
-  async updateStudentProfile(id: string, data: any) {
+  async updateUserProfile(id: string, data: any) {
     return this.request(`/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
-  async getStudentStats(userId: string) {
+  async getUserStats(userId: string) {
     return this.request(`/students/${userId}/stats`)
   }
 
-  async getStudentCV(userId: string) {
+  async getUserCV(userId: string) {
     return this.request(`/students/${userId}/cv`)
   }
 
-  async updateStudentCV(userId: string, cvData: any) {
+  async updateUserCV(userId: string, cvData: any) {
     return this.request(`/students/${userId}/cv`, {
       method: 'PUT',
       body: JSON.stringify(cvData),
     })
   }
 
-  async getApplications(userId: string) {
+  async getUserApplications(userId: string) {
     return this.request(`/applications?userId=${userId}`)
   }
 
@@ -78,10 +94,10 @@ class ApiClient {
     return this.request(`/jobs/${id}`)
   }
 
-  async applyToJob(jobId: string, studentId: string) {
+  async applyToJob(jobId: string, userId: string) {
     return this.request(`/jobs/${jobId}/applications`, {
       method: 'POST',
-      body: JSON.stringify({ studentId }),
+      body: JSON.stringify({ userId }),
     })
   }
 

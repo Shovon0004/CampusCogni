@@ -155,7 +155,7 @@ export default function RecruiterApplicationsPage() {
   return (
     <div className="min-h-screen">
       <GridBackground />
-      <FloatingNavbar userRole="recruiter" userName="Jane Smith" />
+      <FloatingNavbar userRole="RECRUITER" userName="Jane Smith" />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div

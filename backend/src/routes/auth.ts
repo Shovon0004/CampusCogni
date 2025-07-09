@@ -37,7 +37,7 @@ router.post('/register', async (req: any, res: any) => {
     })
 
     // Create profile based on role
-    if (role === 'STUDENT') {
+    if (role === 'USER') {
       await prisma.student.create({
         data: {
           userId: user.id,
@@ -75,7 +75,7 @@ router.post('/register', async (req: any, res: any) => {
     // Generate JWT token for automatic login
     const token = jwt.sign(
       {
-        id: user.id,
+        userId: user.id,
         email: user.email,
         role: user.role,
       },
@@ -130,7 +130,7 @@ router.post('/login', async (req: any, res: any) => {
     // Generate JWT
     const token = jwt.sign(
       {
-        id: user.id,
+        userId: user.id,
         email: user.email,
         role: user.role,
       },
@@ -166,7 +166,7 @@ router.get('/verify', async (req: any, res: any) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: decoded.userId },
       include: {
         student: true,
         recruiter: true,
@@ -188,6 +188,170 @@ router.get('/verify', async (req: any, res: any) => {
   } catch (error) {
     console.error('Token verification error:', error)
     res.status(401).json({ error: 'Invalid token' })
+  }
+})
+
+// Demo login for development - creates user if doesn't exist
+router.post('/demo-login', async (req: any, res: any) => {
+  try {
+    const { email, role = 'USER' } = req.body
+
+    console.log('DEBUG: Demo login request for email:', email, 'role:', role)
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
+    }
+
+    // Find or create user
+    let user = await prisma.user.findUnique({
+      where: { email },
+      include: { student: true, recruiter: true }
+    })
+
+    console.log('DEBUG: Found existing user:', user ? { id: user.id, email: user.email, role: user.role } : 'null')
+
+    if (!user) {
+      // Create new user
+      user = await prisma.user.create({
+        data: {
+          email,
+          password: '', // Demo users don't need passwords
+          role: role as any,
+        },
+        include: { student: true, recruiter: true }
+      })
+      
+      console.log('DEBUG: Created new user:', { id: user.id, email: user.email, role: user.role })
+
+      // Create profile based on role
+      if (role === 'USER') {
+        await prisma.student.create({
+          data: {
+            userId: user.id,
+            firstName: email.split('@')[0] || 'User',
+            lastName: 'Demo',
+            phone: '',
+            college: 'Demo College',
+            course: 'Computer Science',
+            year: '3rd Year',
+            cgpa: 7.0,
+            skills: []
+          }
+        })
+      } else if (role === 'RECRUITER') {
+        await prisma.recruiter.create({
+          data: {
+            userId: user.id,
+            firstName: email.split('@')[0] || 'Recruiter',
+            lastName: 'Demo',
+            phone: '',
+            company: 'Demo Company',
+            jobTitle: 'HR Manager',
+            companySize: 'MEDIUM',
+            industry: 'Technology'
+          }
+        })
+      }
+
+      // Refetch user with profile data
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: { student: true, recruiter: true }
+      })
+    }
+
+    console.log('DEBUG: Generating JWT for user ID:', user!.id)
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user!.id, email: user!.email, role: user!.role },
+      process.env.JWT_SECRET || 'demo-secret',
+      { expiresIn: '24h' }
+    )
+
+    console.log('DEBUG: Generated token payload:', { userId: user!.id, email: user!.email, role: user!.role })
+
+    res.json({
+      token,
+      user: {
+        id: user!.id,
+        email: user!.email,
+        role: user!.role,
+        profile: user!.student || user!.recruiter
+      }
+    })
+  } catch (error) {
+    console.error('Demo login error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Upgrade user to recruiter
+router.post('/upgrade-to-recruiter', async (req: any, res: any) => {
+  try {
+    const authHeader = req.headers['authorization']
+    const token = authHeader && authHeader.split(' ')[1]
+
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'demo-secret') as any
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: { student: true, recruiter: true }
+    })
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' })
+    }
+
+    if (user.role === 'RECRUITER') {
+      return res.status(400).json({ error: 'User is already a recruiter' })
+    }
+
+    // Update user role
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: 'RECRUITER' }
+    })
+
+    // Create recruiter profile
+    const recruiterData = req.body
+    await prisma.recruiter.create({
+      data: {
+        userId: user.id,
+        firstName: recruiterData.firstName || user.student?.firstName || 'Recruiter',
+        lastName: recruiterData.lastName || user.student?.lastName || 'Demo',
+        phone: recruiterData.phone || user.student?.phone || '',
+        company: recruiterData.company || 'Demo Company',
+        jobTitle: recruiterData.jobTitle || 'HR Manager',
+        website: recruiterData.website || null,
+        companySize: recruiterData.companySize || 'MEDIUM',
+        industry: recruiterData.industry || 'Technology',
+        description: recruiterData.description || null,
+      }
+    })
+
+    // Fetch updated user with recruiter profile
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { student: true, recruiter: true }
+    })
+
+    res.json({
+      message: 'User upgraded to recruiter successfully',
+      user: {
+        id: updatedUser!.id,
+        email: updatedUser!.email,
+        role: updatedUser!.role,
+        profile: updatedUser!.recruiter
+      }
+    })
+  } catch (error) {
+    console.error('Upgrade to recruiter error:', error)
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 

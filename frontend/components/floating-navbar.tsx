@@ -19,7 +19,7 @@ import { Menu, Briefcase, User, LogOut, Settings, Bell } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface FloatingNavbarProps {
-  userRole?: "student" | "recruiter" | null
+  userRole?: "USER" | "RECRUITER" | null
   userName?: string
   userAvatar?: string
 }
@@ -43,10 +43,10 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
     router.push("/")
   }
 
-  const studentNavItems = [
-    { href: "/student/dashboard", label: "Dashboard" },
-    { href: "/student/applications", label: "My Applications" },
-    { href: "/student/profile", label: "Profile" },
+  const userNavItems = [
+    { href: "/user/dashboard", label: "Dashboard" },
+    { href: "/user/applications", label: "My Applications" },
+    { href: "/user/profile", label: "Profile" },
   ]
 
   const recruiterNavItems = [
@@ -55,7 +55,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
     { href: "/recruiter/applications", label: "Applications" },
   ]
 
-  const navItems = userRole === "student" ? studentNavItems : recruiterNavItems
+  const navItems = userRole === "USER" ? userNavItems : recruiterNavItems
 
   const NavContent = () => (
     <>
@@ -140,7 +140,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
         <div className="flex items-center space-x-3">
           {/* Post Job button - shows for everyone but redirects based on authentication */}
           <Button asChild variant="default" size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
-            <Link href={userRole === "recruiter" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2">
+            <Link href={userRole === "RECRUITER" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2">
               <Briefcase className="h-4 w-4" />
               Post Job
             </Link>
@@ -173,7 +173,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
                 <div className="flex flex-col space-y-1 leading-none">
                   <p className="font-medium">{userName}</p>
                   <p className="w-[200px] truncate text-sm text-muted-foreground">
-                    {userRole === "student" ? "Student" : "Recruiter"}
+                    {userRole === "USER" ? "User" : "Recruiter"}
                   </p>
                 </div>
               </div>
@@ -205,7 +205,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
             <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl">
               <div className="flex flex-col space-y-6 mt-8">
                 <Button asChild variant="default" className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg font-semibold">
-                  <Link href={userRole === "recruiter" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+                  <Link href={userRole === "RECRUITER" ? "/recruiter/post-job" : "/auth?role=recruiter&redirect=post-job"} className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
                     <Briefcase className="h-4 w-4" />
                     Post Job
                   </Link>

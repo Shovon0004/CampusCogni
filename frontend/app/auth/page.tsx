@@ -23,7 +23,7 @@ export default function AuthPage() {
   const { toast } = useToast()
   const { login, user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [role, setRole] = useState<"student" | "recruiter">("student")
+  const [role, setRole] = useState<"user" | "recruiter">("user")
 
   useEffect(() => {
     // Redirect if already logged in
@@ -32,7 +32,7 @@ export default function AuthPage() {
       if (user.role === 'RECRUITER' && redirectParam === "post-job") {
         router.push('/recruiter/post-job')
       } else {
-        router.push(user.role === 'STUDENT' ? '/student/dashboard' : '/recruiter/dashboard')
+        router.push(user.role === 'USER' ? '/user/dashboard' : '/recruiter/dashboard')
       }
       return
     }
@@ -89,7 +89,7 @@ export default function AuthPage() {
   }
 
   const handleRegister = () => {
-    router.push(role === "student" ? "/student/register" : "/recruiter/register")
+    router.push(role === "user" ? "/user/register" : "/recruiter/register")
   }
 
   return (
@@ -111,7 +111,7 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.05, rotate: 5 }}
                 transition={{ duration: 0.3 }}
               >
-                {role === "student" ? (
+                {role === "user" ? (
                   <User className="w-8 h-8 text-primary" />
                 ) : (
                   <Briefcase className="w-8 h-8 text-primary" />
@@ -122,10 +122,10 @@ export default function AuthPage() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              <Tabs value={role} onValueChange={(value) => setRole(value as "student" | "recruiter")}>
+              <Tabs value={role} onValueChange={(value) => setRole(value as "user" | "recruiter")}>
                 <TabsList className="grid w-full grid-cols-2 bg-muted/50">
-                  <TabsTrigger value="student" className="data-[state=active]:bg-background">
-                    Student
+                  <TabsTrigger value="user" className="data-[state=active]:bg-background">
+                    User
                   </TabsTrigger>
                   <TabsTrigger value="recruiter" className="data-[state=active]:bg-background">
                     Recruiter

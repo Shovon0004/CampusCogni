@@ -34,21 +34,21 @@ router.post('/register', async (req, res) => {
             }
         });
         // Create profile based on role
-        if (role === 'STUDENT') {
+        if (role === 'USER') {
             await prisma_1.prisma.student.create({
                 data: {
                     userId: user.id,
-                    firstName: profileData.firstName,
-                    lastName: profileData.lastName,
-                    phone: profileData.phone,
-                    college: profileData.college,
-                    course: profileData.course,
-                    year: profileData.year,
-                    cgpa: profileData.cgpa,
-                    location: profileData.location,
-                    bio: profileData.bio,
-                    profilePic: profileData.profilePic,
-                    resumeUrl: profileData.resumeUrl,
+                    firstName: profileData.firstName || '',
+                    lastName: profileData.lastName || '',
+                    phone: profileData.phone || '',
+                    college: profileData.college || '',
+                    course: profileData.course || '',
+                    year: profileData.year || '',
+                    cgpa: profileData.cgpa || 0,
+                    location: profileData.location || null,
+                    bio: profileData.bio || null,
+                    profilePic: profileData.profilePic || null,
+                    resumeUrl: profileData.resumeUrl || null,
                     skills: profileData.skills || [],
                 }
             });
@@ -57,21 +57,32 @@ router.post('/register', async (req, res) => {
             await prisma_1.prisma.recruiter.create({
                 data: {
                     userId: user.id,
-                    firstName: profileData.firstName,
-                    lastName: profileData.lastName,
-                    phone: profileData.phone,
-                    company: profileData.company,
-                    jobTitle: profileData.jobTitle,
-                    website: profileData.website,
-                    companySize: profileData.companySize,
-                    industry: profileData.industry,
-                    description: profileData.description,
+                    firstName: profileData.firstName || '',
+                    lastName: profileData.lastName || '',
+                    phone: profileData.phone || '',
+                    company: profileData.company || '',
+                    jobTitle: profileData.jobTitle || '',
+                    website: profileData.website || null,
+                    companySize: profileData.companySize || 'STARTUP',
+                    industry: profileData.industry || '',
+                    description: profileData.description || null,
                 }
             });
         }
+        // Generate JWT token for automatic login
+        const token = jsonwebtoken_1.default.sign({
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+        }, process.env.JWT_SECRET, { expiresIn: '24h' });
         res.status(201).json({
             message: 'User created successfully',
-            userId: user.id
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+            }
         });
     }
     catch (error) {
@@ -104,7 +115,7 @@ router.post('/login', async (req, res) => {
         }
         // Generate JWT
         const token = jsonwebtoken_1.default.sign({
-            id: user.id,
+            userId: user.id,
             email: user.email,
             role: user.role,
         }, process.env.JWT_SECRET, { expiresIn: '24h' });
@@ -133,7 +144,7 @@ router.get('/verify', async (req, res) => {
         }
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
         const user = await prisma_1.prisma.user.findUnique({
-            where: { id: decoded.id },
+            where: { id: decoded.userId },
             include: {
                 student: true,
                 recruiter: true,
@@ -154,6 +165,146 @@ router.get('/verify', async (req, res) => {
     catch (error) {
         console.error('Token verification error:', error);
         res.status(401).json({ error: 'Invalid token' });
+    }
+});
+// Demo login for development - creates user if doesn't exist
+router.post('/demo-login', async (req, res) => {
+    try {
+        const { email, role = 'USER' } = req.body;
+        console.log('DEBUG: Demo login request for email:', email, 'role:', role);
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        // Find or create user
+        let user = await prisma_1.prisma.user.findUnique({
+            where: { email },
+            include: { student: true, recruiter: true }
+        });
+        console.log('DEBUG: Found existing user:', user ? { id: user.id, email: user.email, role: user.role } : 'null');
+        if (!user) {
+            // Create new user
+            user = await prisma_1.prisma.user.create({
+                data: {
+                    email,
+                    password: '', // Demo users don't need passwords
+                    role: role,
+                },
+                include: { student: true, recruiter: true }
+            });
+            console.log('DEBUG: Created new user:', { id: user.id, email: user.email, role: user.role });
+            // Create profile based on role
+            if (role === 'USER') {
+                await prisma_1.prisma.student.create({
+                    data: {
+                        userId: user.id,
+                        firstName: email.split('@')[0] || 'User',
+                        lastName: 'Demo',
+                        phone: '',
+                        college: 'Demo College',
+                        course: 'Computer Science',
+                        year: '3rd Year',
+                        cgpa: 7.0,
+                        skills: []
+                    }
+                });
+            }
+            else if (role === 'RECRUITER') {
+                await prisma_1.prisma.recruiter.create({
+                    data: {
+                        userId: user.id,
+                        firstName: email.split('@')[0] || 'Recruiter',
+                        lastName: 'Demo',
+                        phone: '',
+                        company: 'Demo Company',
+                        jobTitle: 'HR Manager',
+                        companySize: 'MEDIUM',
+                        industry: 'Technology'
+                    }
+                });
+            }
+            // Refetch user with profile data
+            user = await prisma_1.prisma.user.findUnique({
+                where: { email },
+                include: { student: true, recruiter: true }
+            });
+        }
+        console.log('DEBUG: Generating JWT for user ID:', user.id);
+        // Generate JWT token
+        const token = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'demo-secret', { expiresIn: '24h' });
+        console.log('DEBUG: Generated token payload:', { userId: user.id, email: user.email, role: user.role });
+        res.json({
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                profile: user.student || user.recruiter
+            }
+        });
+    }
+    catch (error) {
+        console.error('Demo login error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// Upgrade user to recruiter
+router.post('/upgrade-to-recruiter', async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Access token required' });
+        }
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'demo-secret');
+        const user = await prisma_1.prisma.user.findUnique({
+            where: { id: decoded.userId },
+            include: { student: true, recruiter: true }
+        });
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+        if (user.role === 'RECRUITER') {
+            return res.status(400).json({ error: 'User is already a recruiter' });
+        }
+        // Update user role
+        await prisma_1.prisma.user.update({
+            where: { id: user.id },
+            data: { role: 'RECRUITER' }
+        });
+        // Create recruiter profile
+        const recruiterData = req.body;
+        await prisma_1.prisma.recruiter.create({
+            data: {
+                userId: user.id,
+                firstName: recruiterData.firstName || user.student?.firstName || 'Recruiter',
+                lastName: recruiterData.lastName || user.student?.lastName || 'Demo',
+                phone: recruiterData.phone || user.student?.phone || '',
+                company: recruiterData.company || 'Demo Company',
+                jobTitle: recruiterData.jobTitle || 'HR Manager',
+                website: recruiterData.website || null,
+                companySize: recruiterData.companySize || 'MEDIUM',
+                industry: recruiterData.industry || 'Technology',
+                description: recruiterData.description || null,
+            }
+        });
+        // Fetch updated user with recruiter profile
+        const updatedUser = await prisma_1.prisma.user.findUnique({
+            where: { id: user.id },
+            include: { student: true, recruiter: true }
+        });
+        res.json({
+            message: 'User upgraded to recruiter successfully',
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                profile: updatedUser.recruiter
+            }
+        });
+    }
+    catch (error) {
+        console.error('Upgrade to recruiter error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 exports.default = router;
