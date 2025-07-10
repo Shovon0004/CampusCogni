@@ -9,20 +9,36 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
-import { Briefcase, Mail, Phone, Building, Globe } from "lucide-react"
+import { Upload, User, Mail, Phone, FileText } from "lucide-react"
 import { apiClient } from "@/lib/api"
 
-export default function RecruiterRegisterPage() {
+export default function StudentRegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [companySize, setCompanySize] = useState("")
-  const [industry, setIndustry] = useState("")
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
+  const [resume, setResume] = useState<string | null>(null)
+  const [college, setCollege] = useState("")
+  const [course, setCourse] = useState("")
+  const [year, setYear] = useState("")
+
+  const handleFileUpload = (type: "photo" | "resume", file: File) => {
+    // Mock file upload (replace with actual upload logic if needed)
+    const fileName = file.name
+    if (type === "photo") {
+      setProfilePhoto(fileName)
+    } else {
+      setResume(fileName)
+    }
+    toast({
+      title: "File uploaded successfully",
+      description: `${fileName} has been uploaded.`,
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -34,21 +50,21 @@ export default function RecruiterRegisterPage() {
       lastName: formData.get("lastName"),
       email: formData.get("email"),
       phone: formData.get("phone"),
-      company: formData.get("company"),
-      website: formData.get("website"),
-      jobTitle: formData.get("jobTitle"),
-      companySize,
-      industry,
-      description: formData.get("description"),
-      password: formData.get("password") || undefined, // add password if needed
+      college,
+      course,
+      year,
+      cgpa: formData.get("cgpa"),
+      profilePic: profilePhoto,
+      resumeUrl: resume,
+      // add password if needed
     }
     try {
-      await apiClient.registerRecruiter(data)
+      await apiClient.registerUser(data)
       toast({
         title: "Registration Successful",
-        description: "Welcome to CampusCogni! You can now start posting jobs.",
+        description: "Welcome to CampusCogni! Let's build your CV.",
       })
-      router.push("/recruiter/dashboard")
+      router.push("/user/cv-builder")
     } catch (error: any) {
       toast({
         title: "Registration Failed",
@@ -75,10 +91,10 @@ export default function RecruiterRegisterPage() {
           <Card className="backdrop-blur-sm bg-background/95">
             <CardHeader className="text-center">
               <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-primary" />
+                <User className="w-6 h-6 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Recruiter Registration</CardTitle>
-              <CardDescription>Create your recruiter profile to start posting jobs</CardDescription>
+              <CardTitle className="text-2xl">Student Registration</CardTitle>
+              <CardDescription>Create your student profile to get started</CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -86,18 +102,18 @@ export default function RecruiterRegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" name="firstName" placeholder="Jane" required />
+                    <Input id="firstName" name="firstName" placeholder="John" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" name="lastName" placeholder="Smith" required />
+                    <Input id="lastName" name="lastName" placeholder="Doe" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Work Email</Label>
+                  <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" name="email" type="email" placeholder="jane.smith@company.com" className="pl-10" required />
+                    <Input id="email" name="email" type="email" placeholder="john.doe@college.edu" className="pl-10" required />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -108,60 +124,108 @@ export default function RecruiterRegisterPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company">Company Name</Label>
-                  <div className="relative">
-                    <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="company" name="company" placeholder="Google Inc." className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="website">Company Website</Label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="website" name="website" type="url" placeholder="https://www.google.com" className="pl-10" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="jobTitle">Your Job Title</Label>
-                  <Input id="jobTitle" name="jobTitle" placeholder="HR Manager" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="companySize">Company Size</Label>
-                  <Select required value={companySize} onValueChange={setCompanySize} name="companySize">
+                  <Label htmlFor="college">College/University</Label>
+                  <Select required value={college} onValueChange={setCollege} name="college">
                     <SelectTrigger>
-                      <SelectValue placeholder="Select company size" />
+                      <SelectValue placeholder="Select your college" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="STARTUP">Startup (1-50 employees)</SelectItem>
-                      <SelectItem value="SMALL">Small (51-200 employees)</SelectItem>
-                      <SelectItem value="MEDIUM">Medium (201-1000 employees)</SelectItem>
-                      <SelectItem value="LARGE">Large (1000+ employees)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select required value={industry} onValueChange={setIndustry} name="industry">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="mit">MIT</SelectItem>
+                      <SelectItem value="stanford">Stanford University</SelectItem>
+                      <SelectItem value="harvard">Harvard University</SelectItem>
+                      <SelectItem value="berkeley">UC Berkeley</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Company Description</Label>
-                  <Textarea id="description" name="description" placeholder="Brief description of your company..." rows={4} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="course">Course</Label>
+                    <Select required value={course} onValueChange={setCourse} name="course">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cse">Computer Science</SelectItem>
+                        <SelectItem value="ece">Electronics & Communication</SelectItem>
+                        <SelectItem value="me">Mechanical Engineering</SelectItem>
+                        <SelectItem value="ce">Civil Engineering</SelectItem>
+                        <SelectItem value="mba">MBA</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="year">Year</Label>
+                    <Select required value={year} onValueChange={setYear} name="year">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1st Year</SelectItem>
+                        <SelectItem value="2">2nd Year</SelectItem>
+                        <SelectItem value="3">3rd Year</SelectItem>
+                        <SelectItem value="4">4th Year</SelectItem>
+                        <SelectItem value="graduate">Graduate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cgpa">CGPA</Label>
+                  <Input id="cgpa" name="cgpa" type="number" step="0.01" min="0" max="10" placeholder="8.5" required />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Profile Photo</Label>
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload("photo", file)
+                        }}
+                        className="hidden"
+                        id="photo-upload"
+                      />
+                      <label htmlFor="photo-upload" className="cursor-pointer">
+                        <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {profilePhoto ? profilePhoto : "Click to upload profile photo"}
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Resume</Label>
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleFileUpload("resume", file)
+                        }}
+                        className="hidden"
+                        id="resume-upload"
+                      />
+                      <label htmlFor="resume-upload" className="cursor-pointer">
+                        <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {resume ? resume : "Click to upload resume (PDF, DOC, DOCX)"}
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Recruiter Account"}
+                  {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
             </CardContent>
