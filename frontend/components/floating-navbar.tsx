@@ -219,3 +219,5 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
     </motion.nav>
   )
 }
+
+export default FloatingNavbar;
