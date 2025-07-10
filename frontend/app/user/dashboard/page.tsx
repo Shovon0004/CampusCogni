@@ -20,7 +20,8 @@ import {
   Heart,
   TrendingUp,
   Users,
-  BookOpen
+  BookOpen,
+  ArrowLeftRight
 } from "lucide-react"
 
 interface Job {
@@ -42,6 +43,7 @@ export default function UserDashboard() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [jobs, setJobs] = useState<Job[]>([])
   const [stats, setStats] = useState({
     totalApplications: 0,
@@ -50,12 +52,23 @@ export default function UserDashboard() {
   })
 
   useEffect(() => {
+    console.log('User dashboard - Current user:', user)
+    console.log('User dashboard - User role:', user?.role)
+    
     if (!loading && !user) {
       router.push('/auth')
       return
     }
     
-    if (user && user.role !== 'USER') {
+    // Allow RECRUITER role users to access user dashboard if they have both profiles
+    if (user && user.role === 'RECRUITER') {
+      console.log('User dashboard - RECRUITER trying to access user dashboard, checking for dual profiles...')
+      checkAndUpdateUserRole()
+      return
+    }
+    
+    if (user && (user.role !== 'USER' && user.role !== 'BOTH' && user.role !== 'RECRUITER')) {
+      console.log('User dashboard - Redirecting to recruiter dashboard, user role:', user.role)
       router.push('/recruiter/dashboard')
       return
     }
@@ -65,9 +78,47 @@ export default function UserDashboard() {
     }
   }, [user, loading, router])
 
+  const checkAndUpdateUserRole = async () => {
+    try {
+      console.log('Checking and updating user role for dual profiles...')
+      const roleUpdateResponse = await apiClient.updateUserRole(user!.id, user!.role)
+      
+      if (roleUpdateResponse.roleUpdated && roleUpdateResponse.newRole === 'BOTH') {
+        console.log('Role updated from', roleUpdateResponse.oldRole, 'to', roleUpdateResponse.newRole)
+        
+        // Update the user in context and localStorage
+        const updatedUser = { ...user!, role: 'BOTH' }
+        localStorage.setItem('userData', JSON.stringify(updatedUser))
+        
+        // Continue with loading the dashboard
+        fetchDashboardData()
+      } else if (roleUpdateResponse.newRole === 'RECRUITER') {
+        // User only has recruiter profile, redirect to recruiter dashboard
+        console.log('User only has recruiter profile, redirecting...')
+        router.push('/recruiter/dashboard')
+      } else {
+        // Continue with user dashboard
+        fetchDashboardData()
+      }
+    } catch (error) {
+      console.error('Failed to check/update user role:', error)
+      // If role check fails, still try to load dashboard
+      fetchDashboardData()
+    }
+  }
+
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
+      
+      // Fetch user profile to get name
+      try {
+        const profileResponse = await apiClient.getUserProfile(user!.id)
+        setUserProfile(profileResponse)
+      } catch (profileError) {
+        console.log('Could not fetch user profile:', profileError)
+        // Continue without profile data
+      }
       
       // Fetch jobs from backend
       const jobsResponse = await apiClient.getJobs()
@@ -155,7 +206,13 @@ export default function UserDashboard() {
   }
 
   const handleBecomeRecruiter = () => {
-    router.push('/recruiter/register')
+    // If user already has recruiter access, go to recruiter dashboard
+    if (user?.role === 'RECRUITER' || user?.role === 'BOTH') {
+      router.push('/recruiter/dashboard')
+    } else {
+      // Otherwise, go to recruiter registration
+      router.push('/recruiter/register')
+    }
   }
 
   if (loading || isLoading) {
@@ -183,7 +240,7 @@ export default function UserDashboard() {
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">
-              Welcome back, <span className="text-primary">{user?.profile?.name?.split(' ')[0] || 'User'}!</span>
+              Welcome back, <span className="text-primary">{userProfile?.firstName || user?.email?.split('@')[0] || 'User'}!</span>
             </h1>
             <p className="text-muted-foreground">Discover amazing career opportunities and track your applications.</p>
           </div>
@@ -329,18 +386,25 @@ export default function UserDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Become Recruiter CTA */}
+              {/* Recruiter Access CTA */}
               <Card className="backdrop-blur-sm bg-background/95">
                 <CardHeader>
-                  <CardTitle>Hiring?</CardTitle>
+                  <CardTitle>
+                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' ? 'Recruiting' : 'Hiring?'}
+                  </CardTitle>
                   <CardDescription>
-                    Switch to recruiting mode and start posting jobs
+                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' 
+                      ? 'Access your recruiter dashboard and manage jobs'
+                      : 'Switch to recruiting mode and start posting jobs'
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button onClick={handleBecomeRecruiter} className="w-full">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Become a Recruiter
+                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' 
+                      ? <><ArrowLeftRight className="h-4 w-4 mr-2" />Switch to Recruiter Dashboard</>
+                      : <><TrendingUp className="h-4 w-4 mr-2" />Become a Recruiter</>
+                    }
                   </Button>
                 </CardContent>
               </Card>

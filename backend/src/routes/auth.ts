@@ -194,14 +194,19 @@ router.get('/verify', async (req: any, res: any) => {
 // Upgrade user to recruiter
 router.post('/upgrade-to-recruiter', async (req: any, res: any) => {
   try {
+    console.log('=== UPGRADE TO RECRUITER REQUEST ===')
+    console.log('Request body:', req.body)
+    
     const authHeader = req.headers['authorization']
     const token = authHeader && authHeader.split(' ')[1]
 
     if (!token) {
+      console.log('No token provided')
       return res.status(401).json({ error: 'Access token required' })
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'demo-secret') as any
+    console.log('Decoded token userId:', decoded.userId)
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -209,22 +214,33 @@ router.post('/upgrade-to-recruiter', async (req: any, res: any) => {
     })
 
     if (!user) {
+      console.log('User not found for ID:', decoded.userId)
       return res.status(401).json({ error: 'User not found' })
     }
 
-    if (user.role === 'RECRUITER') {
-      return res.status(400).json({ error: 'User is already a recruiter' })
+    console.log('User found:', user.email, 'Role:', user.role)
+    console.log('Has student profile:', !!user.student)
+    console.log('Has recruiter profile:', !!user.recruiter)
+
+    if (user.recruiter) {
+      console.log('User already has recruiter profile')
+      return res.status(400).json({ error: 'User already has a recruiter profile' })
     }
 
-    // Update user role
+    // Update user role to BOTH if they have a student profile
+    const newRole = user.student ? 'BOTH' : 'RECRUITER'
+    console.log('Updating user role to:', newRole)
+    
     await prisma.user.update({
       where: { id: user.id },
-      data: { role: 'RECRUITER' }
+      data: { role: newRole as any }
     })
 
     // Create recruiter profile
     const recruiterData = req.body
-    await prisma.recruiter.create({
+    console.log('Creating recruiter profile with data:', recruiterData)
+    
+    const createdRecruiter = await prisma.recruiter.create({
       data: {
         userId: user.id,
         firstName: recruiterData.firstName || user.student?.firstName || 'Recruiter',
@@ -239,23 +255,104 @@ router.post('/upgrade-to-recruiter', async (req: any, res: any) => {
       }
     })
 
+    console.log('Recruiter profile created:', createdRecruiter.id)
+
     // Fetch updated user with recruiter profile
     const updatedUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: { student: true, recruiter: true }
     })
 
+    console.log('Updated user role:', updatedUser?.role)
+    console.log('Updated user has recruiter profile:', !!updatedUser?.recruiter)
+    console.log('=== END UPGRADE TO RECRUITER ===')
+
     res.json({
       message: 'User upgraded to recruiter successfully',
-      user: {
-        id: updatedUser!.id,
-        email: updatedUser!.email,
-        role: updatedUser!.role,
-        profile: updatedUser!.recruiter
-      }
+      user: updatedUser
     })
   } catch (error) {
     console.error('Upgrade to recruiter error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Update user role based on their profiles (if they have both student and recruiter profiles, set role to BOTH)
+router.post('/update-role/:userId', async (req: any, res: any) => {
+  try {
+    const { userId } = req.params
+
+    // Check if user has both student and recruiter profiles
+    const [student, recruiter] = await Promise.all([
+      prisma.student.findUnique({ where: { userId } }),
+      prisma.recruiter.findUnique({ where: { userId } })
+    ])
+
+    let newRole = 'USER' // default
+    if (student && recruiter) {
+      newRole = 'BOTH'
+    } else if (recruiter) {
+      newRole = 'RECRUITER'
+    } else if (student) {
+      newRole = 'USER'
+    }
+
+    // Update user role
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: newRole as any },
+      include: {
+        student: true,
+        recruiter: true,
+      },
+    })
+
+    res.json({ 
+      user: updatedUser,
+      roleUpdated: true,
+      oldRole: req.body.oldRole || 'unknown',
+      newRole 
+    })
+  } catch (error) {
+    console.error('Error updating user role:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Debug endpoint to check user profiles and role
+router.get('/debug/:userId', async (req: any, res: any) => {
+  try {
+    const { userId } = req.params
+    
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        student: true,
+        recruiter: true,
+      },
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        hasStudent: !!user.student,
+        hasRecruiter: !!user.recruiter,
+        studentId: user.student?.id,
+        recruiterId: user.recruiter?.id,
+      },
+      profiles: {
+        student: user.student,
+        recruiter: user.recruiter,
+      }
+    })
+  } catch (error) {
+    console.error('Error in debug endpoint:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

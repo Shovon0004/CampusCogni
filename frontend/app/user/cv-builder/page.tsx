@@ -123,7 +123,7 @@ export default function CVBuilderPage() {
       return
     }
 
-    if (user.role !== "USER") {
+    if (user.role !== "USER" && user.role !== "BOTH") {
       router.push("/recruiter/dashboard")
       return
     }

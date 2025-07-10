@@ -24,6 +24,21 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
+    // Check if there's cached auth data but user is null (indicates validation failed)
+    const cachedToken = localStorage.getItem('token')
+    const cachedUserData = localStorage.getItem('userData')
+    
+    if (cachedToken && cachedUserData && !user) {
+      toast({
+        title: "Session Expired",
+        description: "Your previous session has expired. Please sign in again.",
+        variant: "destructive"
+      })
+      // Clear any remaining cached data
+      localStorage.removeItem('token')
+      localStorage.removeItem('userData')
+    }
+    
     // Redirect if already logged in
     if (user) {
       const redirectParam = searchParams.get("redirect")

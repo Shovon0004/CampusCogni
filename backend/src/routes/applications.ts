@@ -35,8 +35,9 @@ router.get('/', async (req: any, res: any) => {
         return res.status(404).json({ error: 'User not found' })
       }
 
-      if ((user.role as any) !== 'USER') {
-        console.log('DEBUG: User role mismatch - expected USER, got:', user.role)
+      // Check if user can access student features (USER or BOTH role)
+      if ((user.role as any) !== 'USER' && (user.role as any) !== 'BOTH') {
+        console.log('DEBUG: User role mismatch - expected USER or BOTH, got:', user.role)
         return res.status(400).json({ error: 'User is not a student' })
       }
 

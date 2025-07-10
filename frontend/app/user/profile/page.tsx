@@ -125,7 +125,7 @@ export default function UserProfilePage() {
       return
     }
 
-    if (user.role !== "USER") {
+    if (user.role !== "USER" && user.role !== "BOTH") {
       router.push("/recruiter/dashboard")
       return
     }
@@ -314,7 +314,7 @@ export default function UserProfilePage() {
       <div className="min-h-screen bg-background">
         <GridBackground />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-24">{/* Fixed: Changed py-8 to py-24 */}
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
           </div>
@@ -328,7 +328,7 @@ export default function UserProfilePage() {
       <GridBackground />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-24">{/* Fixed: Changed py-8 to py-24 for proper navbar spacing */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

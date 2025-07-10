@@ -76,8 +76,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Generate JWT token for auto-login
+    const jwt = require('jsonwebtoken')
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '7d' }
+    )
+
     return NextResponse.json(
-      { message: 'User created successfully', userId: user.id },
+      { 
+        message: 'User created successfully', 
+        userId: user.id,
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        }
+      },
       { status: 201 }
     )
   } catch (error) {
