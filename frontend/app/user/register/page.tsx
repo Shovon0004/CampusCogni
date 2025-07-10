@@ -1,75 +1,118 @@
-"use client"
+'use client'
 
-import type React from "react"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { GridBackground } from '@/components/grid-background'
+import { FloatingNavbar } from '@/components/floating-navbar'
+import { Footer } from '@/components/footer'
+import { useToast } from '@/hooks/use-toast'
+import { User, Mail, Lock, Chrome, UserPlus } from 'lucide-react'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BackgroundPaths } from "@/components/background-paths"
-import { FloatingNavbar } from "@/components/floating-navbar"
-import { useToast } from "@/hooks/use-toast"
-import { Upload, User, Mail, Phone, FileText } from "lucide-react"
-import { apiClient } from "@/lib/api"
-
-export default function StudentRegisterPage() {
+export default function UserRegisterPage() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  })
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
-  const [resume, setResume] = useState<string | null>(null)
-  const [college, setCollege] = useState("")
-  const [course, setCourse] = useState("")
-  const [year, setYear] = useState("")
 
-  const handleFileUpload = (type: "photo" | "resume", file: File) => {
-    // Mock file upload (replace with actual upload logic if needed)
-    const fileName = file.name
-    if (type === "photo") {
-      setProfilePhoto(fileName)
-    } else {
-      setResume(fileName)
-    }
-    toast({
-      title: "File uploaded successfully",
-      description: `${fileName} has been uploaded.`,
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     })
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleGoogleSignup = async () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "Google signup will be available soon. Please use email signup for now.",
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    const form = e.currentTarget
-    const formData = new FormData(form)
-    const data = {
-      firstName: formData.get("firstName"),
-      lastName: formData.get("lastName"),
-      email: formData.get("email"),
-      phone: formData.get("phone"),
-      college,
-      course,
-      year,
-      cgpa: formData.get("cgpa"),
-      profilePic: profilePhoto,
-      resumeUrl: resume,
-      // add password if needed
-    }
-    try {
-      await apiClient.registerUser(data)
+
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       toast({
-        title: "Registration Successful",
-        description: "Welcome to CampusCogni! Let's build your CV.",
+        title: "Missing Fields",
+        description: "All fields are required",
+        variant: "destructive"
       })
-      router.push("/user/cv-builder")
-    } catch (error: any) {
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
       toast({
-        title: "Registration Failed",
-        description: error.message || "Something went wrong.",
-        variant: "destructive",
+        title: "Password Mismatch",
+        description: "Passwords do not match",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Split name into firstName and lastName
+      const nameParts = formData.name.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          role: 'USER',
+          firstName: firstName,
+          lastName: lastName,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Registration Successful",
+          description: "Welcome to CampusCogni! Please sign in.",
+        })
+        router.push('/auth?message=registration-success')
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: data.message || 'Registration failed',
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred during registration",
+        variant: "destructive"
       })
     } finally {
       setIsLoading(false)
@@ -77,161 +120,140 @@ export default function StudentRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <BackgroundPaths />
+    <div className="min-h-screen">
+      <GridBackground />
       <FloatingNavbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-24 flex items-center justify-center min-h-screen">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="max-w-2xl mx-auto"
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="w-full max-w-md"
         >
-          <Card className="backdrop-blur-sm bg-background/95">
-            <CardHeader className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-primary/10 flex items-center justify-center">
-                <User className="w-6 h-6 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">Student Registration</CardTitle>
-              <CardDescription>Create your student profile to get started</CardDescription>
+          <Card className="backdrop-blur-xl bg-background/80 border-0 shadow-2xl">
+            <CardHeader className="text-center pb-8">
+              <motion.div
+                className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ duration: 0.3 }}
+              >
+                <UserPlus className="w-8 h-8 text-primary" />
+              </motion.div>
+              <CardTitle className="text-2xl font-bold">Join CampusCogni</CardTitle>
+              <CardDescription className="text-base">Create your student account to get started</CardDescription>
             </CardHeader>
 
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" name="firstName" placeholder="John" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" name="lastName" placeholder="Doe" required />
+            <CardContent className="space-y-6">
+              <Button
+                onClick={handleGoogleSignup}
+                disabled={isLoading}
+                className="w-full bg-background hover:bg-muted/50 text-foreground border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                variant="outline"
+              >
+                <Chrome className="mr-2 h-4 w-4" />
+                Continue with Google
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="bg-border/50" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      name="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      className="pl-10 bg-background/50 border-border/50"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" name="email" type="email" placeholder="john.doe@college.edu" className="pl-10" required />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      className="pl-10 bg-background/50 border-border/50"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" name="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="college">College/University</Label>
-                  <Select required value={college} onValueChange={setCollege} name="college">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your college" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mit">MIT</SelectItem>
-                      <SelectItem value="stanford">Stanford University</SelectItem>
-                      <SelectItem value="harvard">Harvard University</SelectItem>
-                      <SelectItem value="berkeley">UC Berkeley</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="course">Course</Label>
-                    <Select required value={course} onValueChange={setCourse} name="course">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select course" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cse">Computer Science</SelectItem>
-                        <SelectItem value="ece">Electronics & Communication</SelectItem>
-                        <SelectItem value="me">Mechanical Engineering</SelectItem>
-                        <SelectItem value="ce">Civil Engineering</SelectItem>
-                        <SelectItem value="mba">MBA</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="year">Year</Label>
-                    <Select required value={year} onValueChange={setYear} name="year">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1st Year</SelectItem>
-                        <SelectItem value="2">2nd Year</SelectItem>
-                        <SelectItem value="3">3rd Year</SelectItem>
-                        <SelectItem value="4">4th Year</SelectItem>
-                        <SelectItem value="graduate">Graduate</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      className="pl-10 bg-background/50 border-border/50"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cgpa">CGPA</Label>
-                  <Input id="cgpa" name="cgpa" type="number" step="0.01" min="0" max="10" placeholder="8.5" required />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Profile Photo</Label>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) handleFileUpload("photo", file)
-                        }}
-                        className="hidden"
-                        id="photo-upload"
-                      />
-                      <label htmlFor="photo-upload" className="cursor-pointer">
-                        <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          {profilePhoto ? profilePhoto : "Click to upload profile photo"}
-                        </p>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Resume</Label>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) handleFileUpload("resume", file)
-                        }}
-                        className="hidden"
-                        id="resume-upload"
-                      />
-                      <label htmlFor="resume-upload" className="cursor-pointer">
-                        <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          {resume ? resume : "Click to upload resume (PDF, DOC, DOCX)"}
-                        </p>
-                      </label>
-                    </div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      className="pl-10 bg-background/50 border-border/50"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full shadow-lg hover:shadow-xl transition-all duration-300"
+                  disabled={isLoading}
+                >
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Already have an account? </span>
+                <Button variant="link" className="p-0 text-primary" onClick={() => router.push('/auth')}>
+                  Sign in
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
+
+      <Footer />
     </div>
   )
 }

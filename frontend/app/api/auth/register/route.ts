@@ -7,6 +7,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, password, role, ...profileData } = body
 
+    // Validate required fields
+    if (!email || !password || !role) {
+      return NextResponse.json(
+        { error: 'Email, password, and role are required' },
+        { status: 400 }
+      )
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email }
@@ -32,24 +40,25 @@ export async function POST(request: NextRequest) {
     })
 
     // Create profile based on role
-    if (role === 'STUDENT') {
+    if (role === 'USER') {
       await prisma.student.create({
         data: {
           userId: user.id,
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          phone: profileData.phone,
-          college: profileData.college,
-          course: profileData.course,
-          year: profileData.year,
-          cgpa: profileData.cgpa,
-          location: profileData.location,
-          bio: profileData.bio,
-          profilePic: profileData.profilePic,
-          resumeUrl: profileData.resumeUrl,
+          firstName: profileData.firstName || '',
+          lastName: profileData.lastName || '',
+          phone: profileData.phone || '',
+          college: profileData.college || 'Not specified',
+          course: profileData.course || 'Not specified',
+          year: profileData.year || '1',
+          cgpa: Number(profileData.cgpa) || 0,
+          location: profileData.location || null,
+          bio: profileData.bio || null,
+          profilePic: profileData.profilePic || null,
+          resumeUrl: profileData.resumeUrl || null,
           skills: profileData.skills || [],
         }
       })
+      
     } else if (role === 'RECRUITER') {
       await prisma.recruiter.create({
         data: {

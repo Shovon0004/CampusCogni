@@ -18,7 +18,7 @@
     "campus",
     "jobs"
   ],
-  "author": "Your Name",
+  "author": "Team CampusCogni",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.11.1",

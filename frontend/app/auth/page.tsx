@@ -8,13 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { GridBackground } from "@/components/grid-background"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
 import { useToast } from "@/hooks/use-toast"
-import { Chrome, Mail, Lock, User, Briefcase } from "lucide-react"
+import { Chrome, Mail, Lock, User } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
 export default function AuthPage() {
@@ -23,7 +22,6 @@ export default function AuthPage() {
   const { toast } = useToast()
   const { login, user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [role, setRole] = useState<"user" | "recruiter">("user")
 
   useEffect(() => {
     // Redirect if already logged in
@@ -35,11 +33,6 @@ export default function AuthPage() {
         router.push(user.role === 'USER' ? '/user/dashboard' : '/recruiter/dashboard')
       }
       return
-    }
-
-    const roleParam = searchParams.get("role")
-    if (roleParam === "recruiter") {
-      setRole("recruiter")
     }
 
     // Check for registration success message
@@ -89,7 +82,7 @@ export default function AuthPage() {
   }
 
   const handleRegister = () => {
-    router.push(role === "user" ? "/user/register" : "/recruiter/register")
+    router.push("/user/register")
   }
 
   return (
@@ -111,95 +104,78 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.05, rotate: 5 }}
                 transition={{ duration: 0.3 }}
               >
-                {role === "user" ? (
-                  <User className="w-8 h-8 text-primary" />
-                ) : (
-                  <Briefcase className="w-8 h-8 text-primary" />
-                )}
+                <User className="w-8 h-8 text-primary" />
               </motion.div>
               <CardTitle className="text-2xl font-bold">Welcome to CampusCogni</CardTitle>
-              <CardDescription className="text-base">Sign in as a {role} to continue</CardDescription>
+              <CardDescription className="text-base">Sign in to continue</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
-              <Tabs value={role} onValueChange={(value) => setRole(value as "user" | "recruiter")}>
-                <TabsList className="grid w-full grid-cols-2 bg-muted/50">
-                  <TabsTrigger value="user" className="data-[state=active]:bg-background">
-                    User
-                  </TabsTrigger>
-                  <TabsTrigger value="recruiter" className="data-[state=active]:bg-background">
-                    Recruiter
-                  </TabsTrigger>
-                </TabsList>
+              <Button
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                className="w-full bg-background hover:bg-muted/50 text-foreground border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                variant="outline"
+              >
+                <Chrome className="mr-2 h-4 w-4" />
+                Continue with Google
+              </Button>
 
-                <TabsContent value={role} className="space-y-6 mt-8">
-                  <Button
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    className="w-full bg-background hover:bg-muted/50 text-foreground border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300"
-                    variant="outline"
-                  >
-                    <Chrome className="mr-2 h-4 w-4" />
-                    Continue with Google
-                  </Button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="bg-border/50" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+                </div>
+              </div>
 
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <Separator className="bg-border/50" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
-                    </div>
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      className="pl-10 bg-background/50 border-border/50"
+                      required
+                    />
                   </div>
+                </div>
 
-                  <form onSubmit={handleEmailLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="Enter your email"
-                          className="pl-10 bg-background/50 border-border/50"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="password"
-                          name="password"
-                          type="password"
-                          placeholder="Enter your password"
-                          className="pl-10 bg-background/50 border-border/50"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full shadow-lg hover:shadow-xl transition-all duration-300"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-
-                  <div className="text-center text-sm">
-                    <span className="text-muted-foreground">Don't have an account? </span>
-                    <Button variant="link" className="p-0 text-primary" onClick={handleRegister}>
-                      Sign up
-                    </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      className="pl-10 bg-background/50 border-border/50"
+                      required
+                    />
                   </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full shadow-lg hover:shadow-xl transition-all duration-300"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <Button variant="link" className="p-0 text-primary" onClick={handleRegister}>
+                  Sign up
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
