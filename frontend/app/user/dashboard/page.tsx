@@ -128,7 +128,7 @@ export default function UserDashboard() {
       const applicationsResponse = await apiClient.getUserApplications(user!.id)
       const userApplications = applicationsResponse || []
       
-      // Map jobs with applied status
+      // Map jobs with applied status and ownership
       const jobsWithStatus = fetchedJobs.map((job: any) => ({
         id: job.id,
         title: job.title,
@@ -140,7 +140,8 @@ export default function UserDashboard() {
         requirements: job.requirements || '',
         postedDate: new Date(job.createdAt).toISOString().split('T')[0],
         saved: false, // TODO: Implement saved jobs functionality
-        applied: userApplications.some((app: any) => app.job?.id === job.id)
+        applied: userApplications.some((app: any) => app.job?.id === job.id),
+        ownJob: job.recruiter && job.recruiter.userId && user?.id && job.recruiter.userId === user.id
       }))
       
       // Calculate stats
@@ -337,10 +338,14 @@ export default function UserDashboard() {
                         <div className="flex gap-2">
                           <Button
                             onClick={() => handleApplyToJob(job.id)}
-                            disabled={job.applied}
+                            disabled={job.applied || job.ownJob}
                             className="flex-1"
                           >
-                            {job.applied ? 'Applied' : 'Apply Now'}
+                            {job.ownJob
+                              ? "Your Job"
+                              : job.applied
+                                ? "Applied"
+                                : "Apply Now"}
                           </Button>
                           <Button
                             variant="outline"

@@ -23,9 +23,13 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
       res.status(403).json({ error: 'Invalid or expired token' });
       return;
     }
-
-    req.user = user
-    next()
+    // Map userId/_id to id for compatibility
+    if (!user.id) {
+      if (user.userId) user.id = user.userId;
+      else if (user._id) user.id = user._id;
+    }
+    req.user = user;
+    next();
   })
 }
 
