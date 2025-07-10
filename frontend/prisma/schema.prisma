@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String?
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  student   Student?
+  recruiter Recruiter?
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  RECRUITER
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  college     String
+  course      String
+  year        String
+  cgpa        Float
+  location    String?
+  bio         String?
+  profilePic  String?
+  resumeUrl   String?
+  skills      String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications   Application[]
+  projects       Project[]
+  experiences    Experience[]
+  certifications Certification[]
+  
+  @@map("students")
+}
+
+model Recruiter {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  company     String
+  jobTitle    String
+  website     String?
+  companySize CompanySize @default(STARTUP)
+  industry    String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs Job[]
+  
+  @@map("recruiters")
+}
+
+enum CompanySize {
+  STARTUP
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+model Job {
+  id              String   @id @default(cuid())
+  recruiterId     String
+  title           String
+  type            JobType
+  workMode        WorkMode
+  location        String
+  stipend         String
+  description     String
+  requirements    String
+  benefits        String?
+  eligibleCourses String[]
+  eligibleYears   String[]
+  minCGPA         Float?
+  deadline        DateTime
+  status          JobStatus @default(ACTIVE)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  recruiter    Recruiter     @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications Application[]
+  
+  @@map("jobs")
+}
+
+enum JobType {
+  FULL_TIME
+  INTERNSHIP
+  PART_TIME
+  CONTRACT
+}
+
+enum WorkMode {
+  ON_SITE
+  REMOTE
+  HYBRID
+}
+
+enum JobStatus {
+  ACTIVE
+  CLOSED
+  DRAFT
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  studentId   String
+  jobId       String
+  status      ApplicationStatus @default(APPLIED)
+  coverLetter String?
+  appliedAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  job     Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, jobId])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  REJECTED
+  HIRED
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  studentId    String
+  title        String
+  description  String
+  technologies String[]
+  link         String?
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("projects")
+}
+
+model Experience {
+  id          String    @id @default(cuid())
+  studentId   String
+  company     String
+  role        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  current     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("experiences")
+}
+
+model Certification {
+  id          String   @id @default(cuid())
+  studentId   String
+  name        String
+  issuer      String
+  dateObtained DateTime
+  expiryDate  DateTime?
+  credentialId String?
+  credentialUrl String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("certifications")
+}
+
+model College {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  location  String
+  website   String?
+  courses   String[]
+  createdAt DateTime @default(now())
+  
+  @@map("colleges")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  data      Json?
+  createdAt DateTime         @default(now())
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  APPLICATION_STATUS
+  NEW_JOB
+  INTERVIEW_SCHEDULED
+  MESSAGE
+  SYSTEM
+}
