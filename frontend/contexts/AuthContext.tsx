@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       
-      // Validate user ID format (MongoDB ObjectId)
-      if (!userData.id.match(/^[0-9a-fA-F]{24}$/)) {
+      // Validate user ID format (cuid format)
+      if (!userData.id.match(/^c[a-z0-9]{20,}$/)) {
         console.log('Invalid user ID format, clearing cache')
         localStorage.removeItem('token')
         localStorage.removeItem('userData')
@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      // Use the new backend demo login endpoint
-      const response = await fetch('http://localhost:5000/api/auth/demo-login', {
+      // Use the proper backend login endpoint
+      const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -81,13 +81,17 @@ export default function RecruiterDashboard() {
     try {
       setIsLoading(true)
       
+      // First get recruiter profile to get recruiter ID
+      const recruiterProfile = await apiClient.getRecruiterProfile(user!.id)
+      const recruiterId = recruiterProfile.id
+      
       // Fetch recruiter's jobs from backend
-      const jobsResponse = await apiClient.getRecruiterJobs(user!.id)
-      const recruiterJobs = jobsResponse.data || []
+      const jobsResponse = await apiClient.getRecruiterJobs(recruiterId)
+      const recruiterJobs = jobsResponse || []
       
       // Fetch applications for recruiter's jobs
-      const applicationsResponse = await apiClient.getRecruiterApplications(user!.id)
-      const recruiterApplications = applicationsResponse.data || []
+      const applicationsResponse = await apiClient.getRecruiterApplications(recruiterId)
+      const recruiterApplications = applicationsResponse || []
       
       // Transform jobs data
       const transformedJobs: JobPost[] = recruiterJobs.map((job: any) => ({
@@ -120,7 +124,7 @@ export default function RecruiterDashboard() {
         totalJobs: transformedJobs.length,
         totalApplications: transformedApplications.length,
         pendingApplications: transformedApplications.filter(app => ['applied', 'under_review'].includes(app.status)).length,
-        acceptedApplications: transformedApplications.filter(app => app.status === 'accepted').length
+        acceptedApplications: transformedApplications.filter(app => app.status === 'hired').length
       }
 
       setStats(stats)

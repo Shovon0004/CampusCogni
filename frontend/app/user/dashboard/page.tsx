@@ -31,7 +31,7 @@ interface Job {
   type: string
   stipend: string
   description: string
-  requirements: string[]
+  requirements: string
   postedDate: string
   saved: boolean
   applied: boolean
@@ -71,11 +71,11 @@ export default function UserDashboard() {
       
       // Fetch jobs from backend
       const jobsResponse = await apiClient.getJobs()
-      const fetchedJobs = jobsResponse.data || []
+      const fetchedJobs = jobsResponse.jobs || []
       
       // Fetch user applications to check applied status
       const applicationsResponse = await apiClient.getUserApplications(user!.id)
-      const userApplications = applicationsResponse.data || []
+      const userApplications = applicationsResponse || []
       
       // Map jobs with applied status
       const jobsWithStatus = fetchedJobs.map((job: any) => ({
@@ -86,7 +86,7 @@ export default function UserDashboard() {
         type: job.type,
         stipend: job.stipend,
         description: job.description,
-        requirements: job.requirements || [],
+        requirements: job.requirements || '',
         postedDate: new Date(job.createdAt).toISOString().split('T')[0],
         saved: false, // TODO: Implement saved jobs functionality
         applied: userApplications.some((app: any) => app.job?.id === job.id)
@@ -270,9 +270,9 @@ export default function UserDashboard() {
                         </p>
                         
                         <div className="flex flex-wrap gap-2 mb-4">
-                          {job.requirements.map((req, index) => (
+                          {job.requirements && job.requirements.split(',').map((req, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
-                              {req}
+                              {req.trim()}
                             </Badge>
                           ))}
                         </div>

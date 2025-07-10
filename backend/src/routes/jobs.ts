@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth'
 
@@ -73,47 +73,51 @@ router.get('/', async (req: any, res: any) => {
 })
 
 // Create job
-router.post('/', async (req: any, res: any) => {
-  try {
-    const authHeader = req.headers['authorization']
-    const token = authHeader && authHeader.split(' ')[1]
+router.post(
+  '/',
+  authenticateToken,
+  requireRole(['RECRUITER']),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user } = req as AuthenticatedRequest;
+      const userId = user!.id;
 
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' })
-    }
+      // Find recruiter by userId
+      const recruiter = await prisma.recruiter.findUnique({
+        where: { userId },
+      });
 
-    // Get recruiter ID from token (simplified)
-    const recruiter = await prisma.recruiter.findFirst({
-      where: { user: { email: req.body.userEmail } },
-    })
+      if (!recruiter) {
+        res.status(404).json({ error: 'Recruiter not found' });
+        return;
+      }
 
-    if (!recruiter) {
-      return res.status(404).json({ error: 'Recruiter not found' })
-    }
+      const jobData = req.body;
 
-    const job = await prisma.job.create({
-      data: {
-        ...req.body,
-        recruiterId: recruiter.id,
-        deadline: new Date(req.body.deadline),
-      },
-      include: {
-        recruiter: {
-          select: {
-            company: true,
-            firstName: true,
-            lastName: true,
+      const job = await prisma.job.create({
+        data: {
+          ...jobData,
+          recruiterId: recruiter.id,
+          deadline: new Date(jobData.deadline),
+        },
+        include: {
+          recruiter: {
+            select: {
+              company: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
-    })
+      });
 
-    res.status(201).json(job)
-  } catch (error) {
-    console.error('Error creating job:', error)
-    res.status(500).json({ error: 'Internal server error' })
+      res.status(201).json(job);
+    } catch (error) {
+      console.error('Error creating job:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
-})
+);
 
 // Get job by ID
 router.get('/:id', async (req: any, res: any) => {
@@ -160,7 +164,7 @@ router.post('/:id/apply', async (req: any, res: any) => {
       return res.status(401).json({ error: 'Access token required' })
     }
 
-    // Get student ID (simplified)
+    // Get student ID from token (simplified)
     const student = await prisma.student.findFirst({
       where: { user: { email: req.body.userEmail } },
     })
@@ -198,6 +202,19 @@ router.post('/:id/apply', async (req: any, res: any) => {
         studentId: student.id,
         jobId: req.params.id,
         coverLetter: req.body.coverLetter || '',
+      },
+      include: {
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        job: {
+          select: {
+            title: true,
+          },
+        },
       },
     })
 

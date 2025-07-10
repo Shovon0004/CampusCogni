@@ -14,8 +14,8 @@ router.get('/', async (req: any, res: any) => {
     let applications
 
     if (userId) {
-      // Validate userId format (MongoDB ObjectId)
-      if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
+      // Validate userId format (cuid format)
+      if (!userId.match(/^c[a-z0-9]{20,}$/)) {
         console.log('DEBUG: Invalid user ID format:', userId)
         return res.status(400).json({ error: 'Invalid user ID format' })
       }

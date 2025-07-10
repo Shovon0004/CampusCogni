@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { BackgroundPaths } from "@/components/background-paths"
+import { GridBackground } from "@/components/grid-background"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
+import { apiClient } from "@/lib/api"
 import { 
   User, 
   Mail, 
@@ -31,7 +32,11 @@ import {
   Star,
   Github,
   Linkedin,
-  Globe
+  Globe,
+  Upload,
+  FileText,
+  Download,
+  Eye
 } from "lucide-react"
 
 interface UserProfile {
@@ -131,58 +136,62 @@ export default function UserProfilePage() {
   const fetchUserProfile = async () => {
     try {
       setIsLoading(true)
-      // Mock data for now - replace with actual API call
-      const mockProfile: UserProfile = {
-        id: user?.id || "1",
-        name: user?.profile?.name || user?.email?.split('@')[0] || "John Doe",
-        email: user?.email || "john.doe@example.com",
-        phone: "+1 (555) 123-4567",
-        location: "New York, NY",
-        dateOfBirth: "1999-05-15",
-        college: "Tech University",
-        degree: "Computer Science",
-        graduationYear: "2024",
-        bio: "Passionate computer science student with experience in full-stack development and machine learning. Always eager to learn new technologies and solve complex problems.",
-        skills: ["JavaScript", "Python", "React", "Node.js", "SQL", "MongoDB", "Machine Learning", "Git"],
-        experience: "2 years",
-        projects: ["E-commerce Platform", "Weather App", "Task Management System"],
-        github: "https://github.com/johndoe",
-        linkedin: "https://linkedin.com/in/johndoe",
-        portfolio: "https://johndoe.dev",
-        achievements: ["Dean's List", "Hackathon Winner", "Open Source Contributor"],
-        gpa: "3.8",
-        resumeUrl: "/resume.pdf",
-        profilePicture: "/placeholder-user.jpg"
+      
+      // Fetch real user profile data from backend
+      const response = await apiClient.getUserProfile(user!.id)
+      const userProfile = response
+      
+      // Transform backend data to frontend format
+      const profileData: UserProfile = {
+        id: userProfile.id,
+        name: `${userProfile.firstName} ${userProfile.lastName}`,
+        email: user!.email,
+        phone: userProfile.phone || "",
+        location: userProfile.location || "",
+        dateOfBirth: "", // Add this field to backend if needed
+        college: userProfile.college,
+        degree: userProfile.course,
+        graduationYear: userProfile.year,
+        bio: userProfile.bio || "",
+        skills: userProfile.skills || [],
+        experience: "", // Calculate from experience entries
+        projects: userProfile.projects?.map((p: any) => p.title) || [],
+        github: "", // Add social links to backend if needed
+        linkedin: "",
+        portfolio: "",
+        achievements: [], // Add achievements to backend if needed
+        gpa: userProfile.cgpa?.toString() || "",
+        resumeUrl: userProfile.resumeUrl || "",
+        profilePicture: userProfile.profilePic || "/placeholder-user.jpg"
       }
 
-      const mockEducation: Education[] = [
-        {
-          id: "1",
-          institution: "Tech University",
-          degree: "Bachelor of Science",
-          fieldOfStudy: "Computer Science",
-          startYear: "2020",
-          endYear: "2024",
-          gpa: "3.8",
-          achievements: ["Dean's List", "Magna Cum Laude"]
-        }
-      ]
+      setProfile(profileData)
+      
+      // Transform education data (using college as main education)
+      const educationData: Education[] = [{
+        id: userProfile.id,
+        institution: userProfile.college,
+        degree: userProfile.course,
+        fieldOfStudy: userProfile.course,
+        startYear: (parseInt(userProfile.year) - 4).toString(),
+        endYear: userProfile.year,
+        gpa: userProfile.cgpa?.toString() || "",
+        achievements: []
+      }]
+      
+      // Transform experience data
+      const experienceData: Experience[] = userProfile.experiences?.map((exp: any) => ({
+        id: exp.id,
+        company: exp.company,
+        position: exp.role,
+        startDate: exp.startDate,
+        endDate: exp.endDate || (exp.current ? "Present" : ""),
+        description: exp.description || "",
+        skills: [] // Add skills to experience model if needed
+      })) || []
 
-      const mockExperience: Experience[] = [
-        {
-          id: "1",
-          company: "Tech Startup Inc.",
-          position: "Software Development Intern",
-          startDate: "2023-06",
-          endDate: "2023-08",
-          description: "Developed and maintained web applications using React and Node.js. Collaborated with cross-functional teams to deliver high-quality software solutions.",
-          skills: ["React", "Node.js", "MongoDB", "REST APIs"]
-        }
-      ]
-
-      setProfile(mockProfile)
-      setEducation(mockEducation)
-      setWorkExperience(mockExperience)
+      setEducation(educationData)
+      setWorkExperience(experienceData)
     } catch (error) {
       console.error("Error fetching profile:", error)
       toast({
@@ -198,8 +207,28 @@ export default function UserProfilePage() {
   const handleSaveProfile = async () => {
     try {
       setIsLoading(true)
-      // Mock API call - replace with actual implementation
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Split name back into first and last name
+      const nameParts = profile.name.split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+      
+      // Prepare data for backend
+      const updateData = {
+        firstName,
+        lastName,
+        phone: profile.phone,
+        location: profile.location,
+        college: profile.college,
+        course: profile.degree,
+        year: profile.graduationYear,
+        cgpa: parseFloat(profile.gpa) || 0,
+        bio: profile.bio,
+        skills: profile.skills,
+        // Add other fields as needed
+      }
+      
+      await apiClient.updateUserProfile(user!.id, updateData)
       
       setIsEditing(false)
       toast({
@@ -282,12 +311,12 @@ export default function UserProfilePage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <BackgroundPaths />
+      <div className="min-h-screen bg-background">
+        <GridBackground />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
           </div>
         </div>
       </div>
@@ -295,8 +324,8 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <BackgroundPaths />
+    <div className="min-h-screen bg-background">
+      <GridBackground />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
       <div className="container mx-auto px-4 py-8">
@@ -725,6 +754,121 @@ export default function UserProfilePage() {
                     </a>
                   )}
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CV Management */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                CV Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {profile.resumeUrl ? (
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">Resume.pdf</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Current resume</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(profile.resumeUrl, '_blank')}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a')
+                          link.href = profile.resumeUrl
+                          link.download = 'resume.pdf'
+                          link.click()
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push('/user/cv-builder')}
+                        className="flex items-center gap-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                    <FileText className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">No CV uploaded yet</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push('/user/cv-builder')}
+                        className="flex items-center gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Create CV
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const input = document.createElement('input')
+                          input.type = 'file'
+                          input.accept = '.pdf,.doc,.docx'
+                          input.onchange = async (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0]
+                            if (file) {
+                              // Handle file upload
+                              const formData = new FormData()
+                              formData.append('resume', file)
+                              try {
+                                const response = await fetch('/api/upload/resume', {
+                                  method: 'POST',
+                                  body: formData,
+                                })
+                                if (response.ok) {
+                                  const data = await response.json()
+                                  setProfile(prev => ({ ...prev, resumeUrl: data.url }))
+                                  toast({
+                                    title: "Success",
+                                    description: "CV uploaded successfully"
+                                  })
+                                }
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to upload CV",
+                                  variant: "destructive"
+                                })
+                              }
+                            }
+                          }
+                          input.click()
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Upload CV
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

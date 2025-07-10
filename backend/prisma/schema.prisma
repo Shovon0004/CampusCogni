@@ -6,13 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 // User Models
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   email     String   @unique
   password  String?
   role      UserRole
@@ -32,8 +32,8 @@ enum UserRole {
 }
 
 model Student {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @unique @db.ObjectId
+  id          String   @id @default(cuid())
+  userId      String   @unique
   firstName   String
   lastName    String
   phone       String?
@@ -50,29 +50,29 @@ model Student {
   updatedAt   DateTime @updatedAt
   
   // Relations
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applications Application[]
-  projects     Project[]
-  experiences  Experience[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications   Application[]
+  projects       Project[]
+  experiences    Experience[]
   certifications Certification[]
   
   @@map("students")
 }
 
 model Recruiter {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @unique @db.ObjectId
+  id          String      @id @default(cuid())
+  userId      String      @unique
   firstName   String
   lastName    String
   phone       String?
   company     String
   jobTitle    String
   website     String?
-  companySize CompanySize
+  companySize CompanySize @default(STARTUP)
   industry    String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -89,8 +89,8 @@ enum CompanySize {
 }
 
 model Job {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  recruiterId     String   @db.ObjectId
+  id              String   @id @default(cuid())
+  recruiterId     String
   title           String
   type            JobType
   workMode        WorkMode
@@ -134,9 +134,9 @@ enum JobStatus {
 }
 
 model Application {
-  id          String            @id @default(auto()) @map("_id") @db.ObjectId
-  studentId   String            @db.ObjectId
-  jobId       String            @db.ObjectId
+  id          String            @id @default(cuid())
+  studentId   String
+  jobId       String
   status      ApplicationStatus @default(APPLIED)
   coverLetter String?
   appliedAt   DateTime          @default(now())
@@ -160,8 +160,8 @@ enum ApplicationStatus {
 }
 
 model Project {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  studentId    String   @db.ObjectId
+  id           String   @id @default(cuid())
+  studentId    String
   title        String
   description  String
   technologies String[]
@@ -177,8 +177,8 @@ model Project {
 }
 
 model Experience {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  studentId   String    @db.ObjectId
+  id          String    @id @default(cuid())
+  studentId   String
   company     String
   role        String
   description String?
@@ -194,8 +194,8 @@ model Experience {
 }
 
 model Certification {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  studentId   String   @db.ObjectId
+  id          String   @id @default(cuid())
+  studentId   String
   name        String
   issuer      String
   dateObtained DateTime
@@ -211,7 +211,7 @@ model Certification {
 }
 
 model College {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   name      String   @unique
   location  String
   website   String?
@@ -222,8 +222,8 @@ model College {
 }
 
 model Notification {
-  id        String           @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String           @db.ObjectId
+  id        String           @id @default(cuid())
+  userId    String
   type      NotificationType
   title     String
   message   String
