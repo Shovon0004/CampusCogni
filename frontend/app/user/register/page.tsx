@@ -15,24 +15,49 @@ import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
 import { Briefcase, Mail, Phone, Building, Globe } from "lucide-react"
+import { apiClient } from "@/lib/api"
 
 export default function RecruiterRegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [companySize, setCompanySize] = useState("")
+  const [industry, setIndustry] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Mock registration
-    setTimeout(() => {
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const data = {
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      company: formData.get("company"),
+      website: formData.get("website"),
+      jobTitle: formData.get("jobTitle"),
+      companySize,
+      industry,
+      description: formData.get("description"),
+      password: formData.get("password") || undefined, // add password if needed
+    }
+    try {
+      await apiClient.registerRecruiter(data)
       toast({
         title: "Registration Successful",
         description: "Welcome to CampusCogni! You can now start posting jobs.",
       })
       router.push("/recruiter/dashboard")
-    }, 2000)
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Something went wrong.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -61,69 +86,62 @@ export default function RecruiterRegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="Jane" required />
+                    <Input id="firstName" name="firstName" placeholder="Jane" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Smith" required />
+                    <Input id="lastName" name="lastName" placeholder="Smith" required />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="email">Work Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="jane.smith@company.com" className="pl-10" required />
+                    <Input id="email" name="email" type="email" placeholder="jane.smith@company.com" className="pl-10" required />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
+                    <Input id="phone" name="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="company">Company Name</Label>
                   <div className="relative">
                     <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="company" placeholder="Google Inc." className="pl-10" required />
+                    <Input id="company" name="company" placeholder="Google Inc." className="pl-10" required />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="website">Company Website</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="website" type="url" placeholder="https://www.google.com" className="pl-10" />
+                    <Input id="website" name="website" type="url" placeholder="https://www.google.com" className="pl-10" />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="jobTitle">Your Job Title</Label>
-                  <Input id="jobTitle" placeholder="HR Manager" required />
+                  <Input id="jobTitle" name="jobTitle" placeholder="HR Manager" required />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="companySize">Company Size</Label>
-                  <Select required>
+                  <Select required value={companySize} onValueChange={setCompanySize} name="companySize">
                     <SelectTrigger>
                       <SelectValue placeholder="Select company size" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="startup">Startup (1-50 employees)</SelectItem>
-                      <SelectItem value="small">Small (51-200 employees)</SelectItem>
-                      <SelectItem value="medium">Medium (201-1000 employees)</SelectItem>
-                      <SelectItem value="large">Large (1000+ employees)</SelectItem>
+                      <SelectItem value="STARTUP">Startup (1-50 employees)</SelectItem>
+                      <SelectItem value="SMALL">Small (51-200 employees)</SelectItem>
+                      <SelectItem value="MEDIUM">Medium (201-1000 employees)</SelectItem>
+                      <SelectItem value="LARGE">Large (1000+ employees)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="industry">Industry</Label>
-                  <Select required>
+                  <Select required value={industry} onValueChange={setIndustry} name="industry">
                     <SelectTrigger>
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
@@ -138,12 +156,10 @@ export default function RecruiterRegisterPage() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="description">Company Description</Label>
-                  <Textarea id="description" placeholder="Brief description of your company..." rows={4} />
+                  <Textarea id="description" name="description" placeholder="Brief description of your company..." rows={4} />
                 </div>
-
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Create Recruiter Account"}
                 </Button>
