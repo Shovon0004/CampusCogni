@@ -29,6 +29,7 @@ model User {
 enum UserRole {
   USER
   RECRUITER
+  BOTH
 }
 
 model Student {

@@ -53,6 +53,24 @@ class ApiClient {
     })
   }
 
+  async register(userData: any) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    })
+  }
+
+  async updateUserRole(userId: string, oldRole?: string) {
+    return this.request(`/recruiters/check-role/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ oldRole }),
+    })
+  }
+
+  async debugUser(userId: string) {
+    return this.request(`/auth/debug/${userId}`)
+  }
+
   // User APIs
   async getUserProfile(id: string) {
     return this.request(`/students/${id}`)

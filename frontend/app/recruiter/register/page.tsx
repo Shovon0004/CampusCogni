@@ -2,8 +2,9 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,55 +15,141 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
-import { Briefcase, Mail, Phone, Building, Globe } from "lucide-react"
+import { Briefcase, Mail, Phone, Building, Globe, User, Lock, Eye, EyeOff } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
 
 export default function RecruiterRegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { setUserFromToken } = useAuth()
+  const { user, upgradeToRecruiter } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [companySize, setCompanySize] = useState("")
   const [industry, setIndustry] = useState("")
 
+  // Check if user is already logged in
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth')
+      return
+    }
+    
+    // If user already has recruiter profile, redirect to dashboard
+    if (user.role === 'RECRUITER' || user.role === 'BOTH') {
+      router.push('/recruiter/dashboard')
+      return
+    }
+  }, [user, router])
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    company: '',
+    website: '',
+    jobTitle: '',
+    description: ''
+  })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const validateForm = () => {
+    if (!formData.firstName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "First name is required",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!formData.lastName.trim()) {
+      toast({
+        title: "Validation Error", 
+        description: "Last name is required",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!formData.company.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Company name is required",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!formData.jobTitle.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Job title is required",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!companySize) {
+      toast({
+        title: "Validation Error",
+        description: "Please select company size",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!industry) {
+      toast({
+        title: "Validation Error",
+        description: "Please select industry",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    return true
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const formData = new FormData(e.target as HTMLFormElement)
       const recruiterData = {
-        email: formData.get('email') as string,
-        password: formData.get('password') as string,
-        firstName: formData.get('firstName') as string,
-        lastName: formData.get('lastName') as string,
-        phone: formData.get('phone') as string,
-        company: formData.get('company') as string,
-        website: formData.get('website') as string,
-        jobTitle: formData.get('jobTitle') as string,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        company: formData.company,
+        website: formData.website,
+        jobTitle: formData.jobTitle,
         companySize: companySize,
         industry: industry,
-        description: formData.get('description') as string,
+        description: formData.description,
       }
 
-      const result = await apiClient.registerRecruiter(recruiterData)
-      
-      // Log the user in automatically
-      if (result.token && result.user) {
-        setUserFromToken(result.token, result.user)
-      }
+      await upgradeToRecruiter(recruiterData)
 
       toast({
-        title: "Registration Successful",
-        description: "Welcome to CampusCogni! You can now start posting jobs.",
+        title: "Profile Created Successfully",
+        description: "Your recruiter profile has been created! You can now start posting jobs.",
       })
       
       router.push("/recruiter/dashboard")
     } catch (error) {
-      console.error('Registration failed:', error)
+      console.error('Profile creation failed:', error)
       toast({
-        title: "Registration Failed",
+        title: "Profile Creation Failed",
         description: error instanceof Error ? error.message : "Please check your information and try again.",
         variant: "destructive"
       })
@@ -88,8 +175,8 @@ export default function RecruiterRegisterPage() {
               <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Briefcase className="w-6 h-6 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Recruiter Registration</CardTitle>
-              <CardDescription>Create your recruiter profile to start posting jobs</CardDescription>
+              <CardTitle className="text-2xl">Create Recruiter Profile</CardTitle>
+              <CardDescription>Set up your recruiter profile to start posting jobs</CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -97,32 +184,41 @@ export default function RecruiterRegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" name="firstName" placeholder="Jane" required />
+                    <Input 
+                      id="firstName" 
+                      name="firstName" 
+                      placeholder="Jane" 
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" name="lastName" placeholder="Smith" required />
+                    <Input 
+                      id="lastName" 
+                      name="lastName" 
+                      placeholder="Smith" 
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required 
+                    />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Work Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" name="email" type="email" placeholder="jane.smith@company.com" className="pl-10" required />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" placeholder="Enter your password" required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" name="phone" type="tel" placeholder="+1 (555) 123-4567" className="pl-10" required />
+                    <Input 
+                      id="phone" 
+                      name="phone" 
+                      type="tel" 
+                      placeholder="+1 (555) 123-4567" 
+                      className="pl-10" 
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
 
@@ -130,7 +226,15 @@ export default function RecruiterRegisterPage() {
                   <Label htmlFor="company">Company Name</Label>
                   <div className="relative">
                     <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="company" name="company" placeholder="Google Inc." className="pl-10" required />
+                    <Input 
+                      id="company" 
+                      name="company" 
+                      placeholder="Google Inc." 
+                      className="pl-10" 
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      required 
+                    />
                   </div>
                 </div>
 
@@ -138,13 +242,28 @@ export default function RecruiterRegisterPage() {
                   <Label htmlFor="website">Company Website</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input id="website" name="website" type="url" placeholder="https://www.google.com" className="pl-10" />
+                    <Input 
+                      id="website" 
+                      name="website" 
+                      type="url" 
+                      placeholder="https://www.google.com" 
+                      className="pl-10" 
+                      value={formData.website}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="jobTitle">Your Job Title</Label>
-                  <Input id="jobTitle" name="jobTitle" placeholder="HR Manager" required />
+                  <Input 
+                    id="jobTitle" 
+                    name="jobTitle" 
+                    placeholder="HR Manager" 
+                    value={formData.jobTitle}
+                    onChange={handleInputChange}
+                    required 
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -182,11 +301,18 @@ export default function RecruiterRegisterPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Company Description</Label>
-                  <Textarea id="description" name="description" placeholder="Brief description of your company..." rows={4} />
+                  <Textarea 
+                    id="description" 
+                    name="description" 
+                    placeholder="Brief description of your company..." 
+                    rows={4} 
+                    value={formData.description}
+                    onChange={handleInputChange}
+                  />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Recruiter Account"}
+                  {isLoading ? "Creating Profile..." : "Create Recruiter Profile"}
                 </Button>
               </form>
             </CardContent>

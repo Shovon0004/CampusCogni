@@ -5,7 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 interface User {
   id: string
   email: string
-  role: 'USER' | 'RECRUITER'
+  role: 'USER' | 'RECRUITER' | 'BOTH'
   profile?: any
 }
 
@@ -38,7 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // For demo purposes, just use saved user data
       const userData = JSON.parse(savedUserData)
       
       // Validate user data format
@@ -58,8 +57,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
         return
       }
+
+      // Verify with backend that user still exists
+      try {
+        const response = await fetch(`http://localhost:5000/api/students/${userData.id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          console.log('User validation failed, clearing cache')
+          localStorage.removeItem('token')
+          localStorage.removeItem('userData')
+          setLoading(false)
+          return
+        }
+        
+        // User exists in database, set user data
+        setUser(userData)
+      } catch (backendError) {
+        console.log('Backend validation failed, clearing cache')
+        localStorage.removeItem('token')
+        localStorage.removeItem('userData')
+        setLoading(false)
+        return
+      }
       
-      setUser(userData)
     } catch (error) {
       console.error('Auth check failed:', error)
       localStorage.removeItem('token')
@@ -105,6 +131,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('token')
     localStorage.removeItem('userData')
     setUser(null)
+    // Force reload to clear any cached state
+    window.location.href = '/auth'
+  }
+
+  // Force clear all auth data (for debugging)
+  const forceClearAuth = () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    setUser(null)
+    window.location.href = '/auth'
+  }
+
+  // Make forceClearAuth available globally for debugging
+  if (typeof window !== 'undefined') {
+    (window as any).forceClearAuth = forceClearAuth
   }
 
   const setUserFromToken = (token: string, userData: User) => {

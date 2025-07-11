@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +21,8 @@ import {
   MessageSquare,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  ArrowLeftRight
 } from "lucide-react"
 
 interface JobPost {
@@ -52,6 +54,7 @@ export default function RecruiterDashboard() {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
+  const [recruiterProfile, setRecruiterProfile] = useState<any>(null)
   const [stats, setStats] = useState({
     totalJobs: 0,
     totalApplications: 0,
@@ -62,27 +65,88 @@ export default function RecruiterDashboard() {
   const [recentApplications, setRecentApplications] = useState<Application[]>([])
 
   useEffect(() => {
+    console.log('Recruiter dashboard - Current user:', user)
+    console.log('Recruiter dashboard - User role:', user?.role)
+    
     if (!loading && !user) {
       router.push('/auth')
       return
     }
     
-    if (user && user.role !== 'RECRUITER') {
+    if (user && user.role !== 'RECRUITER' && user.role !== 'BOTH') {
+      console.log('Recruiter dashboard - Redirecting to user dashboard, user role:', user.role)
       router.push('/user/dashboard')
       return
     }
 
     if (user) {
-      fetchDashboardData()
+      // Check and update role before fetching dashboard data
+      checkAndUpdateRole()
     }
   }, [user, loading, router])
+
+  const checkAndUpdateRole = async () => {
+    try {
+      console.log('Checking if user role needs updating...')
+      const roleUpdateResponse = await apiClient.updateUserRole(user!.id, user!.role)
+      
+      if (roleUpdateResponse.roleUpdated) {
+        console.log('Role updated from', roleUpdateResponse.oldRole, 'to', roleUpdateResponse.newRole)
+        
+        // Update the user in localStorage
+        const updatedUser = { ...user!, role: roleUpdateResponse.newRole }
+        localStorage.setItem('userData', JSON.stringify(updatedUser))
+        
+        // Force a page refresh to reload with new role
+        window.location.reload()
+        return
+      }
+      
+      // Continue with fetching dashboard data
+      fetchDashboardData()
+    } catch (error) {
+      console.error('Failed to check/update role:', error)
+      // Continue with dashboard data even if role check fails
+      fetchDashboardData()
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
       
       // First get recruiter profile to get recruiter ID
-      const recruiterProfile = await apiClient.getRecruiterProfile(user!.id)
+      console.log('Fetching recruiter profile for user ID:', user!.id)
+      
+      let recruiterProfile
+      let retryCount = 0
+      const maxRetries = 3
+      
+      // Retry mechanism for recruiter profile (in case it was just created)
+      while (retryCount < maxRetries) {
+        try {
+          recruiterProfile = await apiClient.getRecruiterProfile(user!.id)
+          console.log('Recruiter profile fetched:', recruiterProfile)
+          setRecruiterProfile(recruiterProfile) // Store in state
+          break
+        } catch (error: any) {
+          retryCount++
+          console.log(`Attempt ${retryCount} failed to fetch recruiter profile:`, error)
+          
+          if (retryCount >= maxRetries) {
+            console.error('Failed to fetch recruiter profile after', maxRetries, 'attempts')
+            throw new Error('Recruiter profile not found. Please try refreshing the page.')
+          }
+          
+          // Wait 1 second before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+      
+      if (!recruiterProfile) {
+        throw new Error('Unable to fetch recruiter profile')
+      }
+      
       const recruiterId = recruiterProfile.id
       
       // Fetch recruiter's jobs from backend
@@ -132,14 +196,19 @@ export default function RecruiterDashboard() {
       setRecentApplications(transformedApplications)
 
     } catch (error) {
+      console.error('Failed to fetch dashboard data:', error)
       toast({
         title: "Error",
-        description: "Failed to load dashboard data",
+        description: `Failed to load profile data: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       })
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSwitchToUser = () => {
+    router.push('/user/dashboard')
   }
 
   if (loading || isLoading) {
@@ -156,7 +225,7 @@ export default function RecruiterDashboard() {
   return (
     <div className="min-h-screen">
       <BackgroundPaths />
-      <FloatingNavbar userRole="RECRUITER" userName={user?.email || "Recruiter"} />
+      <FloatingNavbar userRole={user?.role as "USER" | "RECRUITER" | "BOTH"} userName={user?.email || "Recruiter"} />
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -166,7 +235,7 @@ export default function RecruiterDashboard() {
         >
           {/* Welcome Section */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, <span className="text-primary">{recruiterProfile?.firstName || user?.email?.split('@')[0] || 'Recruiter'}!</span></h1>
             <p className="text-muted-foreground">Here's what's happening with your recruitment activities.</p>
           </div>
 
@@ -231,10 +300,10 @@ export default function RecruiterDashboard() {
                     <CardDescription>Your latest job postings and their performance</CardDescription>
                   </div>
                   <Button asChild size="sm">
-                    <a href="/recruiter/post-job">
+                    <Link href="/recruiter/post-job">
                       <Plus className="h-4 w-4 mr-2" />
                       Post Job
-                    </a>
+                    </Link>
                   </Button>
                 </div>
               </CardHeader>
@@ -270,7 +339,7 @@ export default function RecruiterDashboard() {
                     <CardDescription>Latest applications requiring your review</CardDescription>
                   </div>
                   <Button asChild variant="outline" size="sm">
-                    <a href="/recruiter/applications">View All</a>
+                    <Link href="/recruiter/applications">View All</Link>
                   </Button>
                 </div>
               </CardHeader>
@@ -307,25 +376,32 @@ export default function RecruiterDashboard() {
               <CardDescription>Common tasks to help you manage recruitment efficiently</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Button asChild variant="outline" className="h-20 flex-col">
-                  <a href="/recruiter/post-job">
+                  <Link href="/recruiter/post-job">
                     <Plus className="h-6 w-6 mb-2" />
                     Post New Job
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-20 flex-col">
-                  <a href="/recruiter/applications">
+                  <Link href="/recruiter/applications">
                     <Users className="h-6 w-6 mb-2" />
                     Review Applications
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-20 flex-col">
-                  <a href="/recruiter/applications">
+                  <Link href="/recruiter/applications">
                     <TrendingUp className="h-6 w-6 mb-2" />
                     View Analytics
-                  </a>
+                  </Link>
                 </Button>
+                {/* Show switch button only for users with BOTH roles */}
+                {user?.role === 'BOTH' && (
+                  <Button onClick={handleSwitchToUser} variant="outline" className="h-20 flex-col">
+                    <ArrowLeftRight className="h-6 w-6 mb-2" />
+                    Switch to User Dashboard
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

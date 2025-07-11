@@ -76,11 +76,16 @@ router.get('/', async (req: any, res: any) => {
 router.post(
   '/',
   authenticateToken,
-  requireRole(['RECRUITER']),
+  requireRole(['RECRUITER', 'BOTH']),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { user } = req as AuthenticatedRequest;
-      const userId = user!.id;
+      if (!user || !user.id) {
+        console.error('No user or user.id in request:', user);
+        res.status(401).json({ error: 'Invalid or missing user authentication' });
+        return;
+      }
+      const userId = user.id;
 
       // Find recruiter by userId
       const recruiter = await prisma.recruiter.findUnique({
@@ -92,7 +97,27 @@ router.post(
         return;
       }
 
+
       const jobData = req.body;
+
+      // Map type and workMode to Prisma enums
+      const typeMap: Record<string, string> = {
+        "part-time": "PART_TIME",
+        "full-time": "FULL_TIME",
+        "internship": "INTERNSHIP"
+      };
+      if (jobData.type && typeMap[jobData.type]) {
+        jobData.type = typeMap[jobData.type];
+      }
+
+      const workModeMap: Record<string, string> = {
+        "on-site": "ON_SITE",
+        "remote": "REMOTE",
+        "hybrid": "HYBRID"
+      };
+      if (jobData.workMode && workModeMap[jobData.workMode]) {
+        jobData.workMode = workModeMap[jobData.workMode];
+      }
 
       const job = await prisma.job.create({
         data: {
@@ -164,22 +189,28 @@ router.post('/:id/apply', async (req: any, res: any) => {
       return res.status(401).json({ error: 'Access token required' })
     }
 
-    // Get student ID from token (simplified)
+
+    // Get student and their userId
     const student = await prisma.student.findFirst({
       where: { user: { email: req.body.userEmail } },
-    })
-
+      include: { user: true }
+    });
     if (!student) {
-      return res.status(404).json({ error: 'Student not found' })
+      return res.status(404).json({ error: 'Student not found' });
     }
 
-    // Check if job exists
+    // Get job and its recruiter
     const job = await prisma.job.findUnique({
       where: { id: req.params.id },
-    })
-
+      include: { recruiter: true }
+    });
     if (!job) {
-      return res.status(404).json({ error: 'Job not found' })
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Prevent user from applying to their own job
+    if (job.recruiter && student.user && job.recruiter.userId === student.user.id) {
+      return res.status(400).json({ error: "You cannot apply to a job you posted." });
     }
 
     // Check if already applied

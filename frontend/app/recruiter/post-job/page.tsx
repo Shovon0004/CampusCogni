@@ -44,7 +44,7 @@ const PostJobPage: React.FC = () => {
       return
     }
     
-    if (user && user.role !== 'RECRUITER') {
+    if (user && user.role !== 'RECRUITER' && user.role !== 'BOTH') {
       router.push('/user/dashboard')
       return
     }
