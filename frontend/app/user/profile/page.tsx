@@ -38,6 +38,7 @@ import {
   Download,
   Eye
 } from "lucide-react"
+import { SkillsAutocomplete } from "@/components/ui/skills-autocomplete"
 
 interface UserProfile {
   id: string
@@ -618,7 +619,7 @@ export default function UserProfilePage() {
                         onClick={() => handleRemoveSkill(skill)}
                         className="ml-2 text-red-500 hover:text-red-700"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </button>
                     )}
                   </Badge>
@@ -634,44 +635,6 @@ export default function UserProfilePage() {
                     onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
                   />
                   <Button onClick={handleAddSkill} variant="outline">
-                    Add
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Projects */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 mb-4">
-                {profile.projects.map((project) => (
-                  <div key={project} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                    <span className="text-gray-700 dark:text-gray-300">{project}</span>
-                    {isEditing && (
-                      <button
-                        onClick={() => handleRemoveProject(project)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              {isEditing && (
-                <div className="flex gap-2">
-                  <Input
-                    value={newProject}
-                    onChange={(e) => setNewProject(e.target.value)}
-                    placeholder="Add a new project"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddProject()}
-                  />
-                  <Button onClick={handleAddProject} variant="outline">
                     Add
                   </Button>
                 </div>
