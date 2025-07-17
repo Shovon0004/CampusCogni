@@ -17,12 +17,34 @@ export const SkillsAutocomplete: React.FC<SkillsAutocompleteProps> = ({ skills, 
 
   useEffect(() => {
     fetch("/skills.json")
-      .then((res) => res.json())
-      .then((data) => setAllSkills(data));
+      .then((res) => {
+        if (!res.ok) {
+          console.error("Failed to fetch skills.json", res.status);
+          return [];
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          console.error("skills.json is not an array", data);
+          setAllSkills([]);
+        } else {
+          setAllSkills(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching skills.json:", err);
+        setAllSkills([]);
+      });
   }, []);
 
   useEffect(() => {
     if (!query) {
+      setSuggestions([]);
+      return;
+    }
+    if (!Array.isArray(allSkills) || allSkills.length === 0) {
+      console.warn("allSkills is empty or not an array", allSkills);
       setSuggestions([]);
       return;
     }
@@ -36,9 +58,12 @@ export const SkillsAutocomplete: React.FC<SkillsAutocompleteProps> = ({ skills, 
   }, [query, allSkills, skills]);
 
   const handleAddSkill = (skill: string) => {
-    if (!skills.includes(skill)) {
-      setSkills([...skills, skill]);
+    if (skills.map(s => s.toLowerCase()).includes(skill.toLowerCase())) {
+      setQuery("");
+      setSuggestions([]);
+      return;
     }
+    setSkills([...skills, skill]);
     setQuery("");
     setSuggestions([]);
   };
@@ -73,17 +98,23 @@ export const SkillsAutocomplete: React.FC<SkillsAutocompleteProps> = ({ skills, 
             placeholder="Type a skill..."
             autoComplete="off"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && suggestions.length > 0) {
-                handleAddSkill(suggestions[0]);
+              if (e.key === "Enter") {
+                // If the query matches a suggestion exactly, add only once
+                const match = suggestions.find(s => s.toLowerCase() === query.trim().toLowerCase());
+                if (match) {
+                  handleAddSkill(match);
+                } else if (suggestions.length > 0) {
+                  handleAddSkill(suggestions[0]);
+                }
               }
             }}
           />
           {suggestions.length > 0 && (
-            <div className="absolute z-10 bg-white border rounded shadow mt-1 w-full max-h-40 overflow-y-auto">
+            <div className="absolute z-10 border rounded shadow mt-1 w-full max-h-40 overflow-y-auto bg-white text-black dark:bg-gray-900 dark:text-white">
               {suggestions.map((s) => (
                 <div
                   key={s}
-                  className="px-3 py-2 cursor-pointer hover:bg-blue-100"
+                  className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900"
                   onClick={() => handleAddSkill(s)}
                 >
                   {s}

@@ -610,33 +610,19 @@ export default function UserProfilePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {profile.skills.map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-sm">
-                    {skill}
-                    {isEditing && (
-                      <button
-                        onClick={() => handleRemoveSkill(skill)}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </Badge>
-                ))}
-              </div>
-              
-              {isEditing && (
-                <div className="flex gap-2">
-                  <Input
-                    value={newSkill}
-                    onChange={(e) => setNewSkill(e.target.value)}
-                    placeholder="Add a new skill"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
-                  />
-                  <Button onClick={handleAddSkill} variant="outline">
-                    Add
-                  </Button>
+              {isEditing ? (
+                <SkillsAutocomplete
+                  skills={profile.skills}
+                  setSkills={(skills) => setProfile(prev => ({ ...prev, skills }))}
+                  disabled={!isEditing}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {profile.skills.map((skill) => (
+                    <Badge key={skill} variant="secondary" className="text-sm">
+                      {skill}
+                    </Badge>
+                  ))}
                 </div>
               )}
             </CardContent>
