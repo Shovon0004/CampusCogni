@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 5000
 // Middleware
 app.use(helmet())
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://campuscogni.vercel.app', 'https://campus-cogni.vercel.app'],
   credentials: true,
 }))
 app.use(morgan('combined'))
