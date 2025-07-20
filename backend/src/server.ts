@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
 import morgan from 'morgan' 
+import { prisma } from './lib/prisma'
 
 // Import routes
 import authRoutes from './routes/auth'
@@ -65,8 +66,49 @@ app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() })
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`
+    
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      environment: process.env.NODE_ENV || 'development'
+    })
+  } catch (error) {
+    console.error('Health check failed:', error)
+    res.status(500).json({ 
+      status: 'ERROR', 
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Database connection failed'
+    })
+  }
+})
+
+// Debug endpoint for testing API connectivity
+app.post('/debug/register', (req, res) => {
+  console.log('Debug - Registration data received:', req.body)
+  res.json({ 
+    message: 'Debug: Data received successfully', 
+    receivedData: req.body,
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Environment check endpoint
+app.get('/debug/env', (req, res) => {
+  const envCheck = {
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'not set',
+    JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'not set',
+    PORT: process.env.PORT || 'not set',
+  }
+  
+  console.log('Environment check:', envCheck)
+  res.json(envCheck)
 })
 
 // API Routes

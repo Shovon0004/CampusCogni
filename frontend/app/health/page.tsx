@@ -4,18 +4,27 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export default function HealthCheck() {
   const [backendHealth, setBackendHealth] = useState<any>(null)
+  const [envCheck, setEnvCheck] = useState<any>(null)
+  const [testRegistration, setTestRegistration] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Test registration data
+  const [testEmail, setTestEmail] = useState('test@example.com')
+  const [testPassword, setTestPassword] = useState('testpassword123')
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'
 
   const checkHealth = async () => {
     setLoading(true)
     setError(null)
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'
       const response = await fetch(`${apiUrl}/health`)
       
       if (!response.ok) {
@@ -31,12 +40,55 @@ export default function HealthCheck() {
     }
   }
 
+  const checkEnvironment = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/debug/env`)
+      if (response.ok) {
+        const data = await response.json()
+        setEnvCheck(data)
+      }
+    } catch (err) {
+      console.error('Environment check failed:', err)
+    }
+  }
+
+  const testRegisterEndpoint = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/debug/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: testEmail,
+          password: testPassword,
+          role: 'USER',
+          firstName: 'Test',
+          lastName: 'User',
+          college: 'Test College',
+          course: 'Computer Science',
+          year: '2024'
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setTestRegistration(data)
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+    } catch (err: any) {
+      setTestRegistration({ error: err.message })
+    }
+  }
+
   useEffect(() => {
     checkHealth()
+    checkEnvironment()
   }, [])
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>System Health Check</CardTitle>
@@ -78,6 +130,62 @@ export default function HealthCheck() {
           <Button onClick={checkHealth} disabled={loading}>
             {loading ? 'Checking...' : 'Refresh Health Check'}
           </Button>
+        </CardContent>
+      </Card>
+
+      {envCheck && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Environment Variables</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="bg-gray-100 p-2 rounded text-sm">
+              {JSON.stringify(envCheck, null, 2)}
+            </pre>
+            <Button onClick={checkEnvironment} className="mt-2" variant="outline">
+              Refresh Environment Check
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Test Registration Endpoint</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="testEmail">Test Email</Label>
+              <Input
+                id="testEmail"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="testPassword">Test Password</Label>
+              <Input
+                id="testPassword"
+                type="password"
+                value={testPassword}
+                onChange={(e) => setTestPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <Button onClick={testRegisterEndpoint}>
+            Test Debug Registration Endpoint
+          </Button>
+
+          {testRegistration && (
+            <div>
+              <strong>Test Registration Response:</strong>
+              <pre className="bg-gray-100 p-2 rounded mt-2 text-sm">
+                {JSON.stringify(testRegistration, null, 2)}
+              </pre>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
