@@ -92,7 +92,7 @@ export function LiveCVPreview({ cvData, isUpdating = false }: LiveCVPreviewProps
   };
 
   return (
-    <Card className={`w-full max-w-4xl mx-auto transition-all duration-300 ${
+    <Card className={`w-full max-w-4xl mx-auto backdrop-blur-sm bg-background/95 transition-all duration-300 ${
       isUpdating ? 'ring-2 ring-blue-500 ring-opacity-50 shadow-lg' : ''
     }`}>
       <CardContent className="p-8 space-y-8">

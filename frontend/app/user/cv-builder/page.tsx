@@ -622,12 +622,12 @@ export default function CVBuilderPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen">
         <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
         <div className="container mx-auto px-4 py-8 pt-24">
           <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
           </div>
         </div>
       </div>
@@ -635,7 +635,7 @@ export default function CVBuilderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen">
       <BackgroundPaths />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
@@ -688,72 +688,41 @@ export default function CVBuilderPage() {
           </div>
 
           <div className={`grid gap-8 transition-all duration-500 ${
-            showPreview ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1 lg:grid-cols-4'
+            showPreview ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 lg:grid-cols-4'
           }`}>
-            {/* Navigation - hide when preview is shown on smaller screens */}
-            {!showPreview && (
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Sections</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="space-y-1">
-                      {menuItems.map((item) => {
-                        const Icon = item.icon
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => setActiveSection(item.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                              activeSection === item.id 
-                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600" 
-                                : "text-gray-700 dark:text-gray-300"
-                            }`}
-                          >
-                            <Icon className="h-5 w-5" />
-                            {item.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            {/* Navigation - Always visible */}
+            <div className={showPreview ? 'xl:col-span-1' : 'lg:col-span-1'}>
+              <Card className="backdrop-blur-sm bg-background/95">
+                <CardHeader>
+                  <CardTitle className="text-lg">Sections</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="space-y-1">
+                    {menuItems.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveSection(item.id)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                            activeSection === item.id 
+                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600" 
+                              : "text-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                          {item.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Content */}
             <div className={showPreview ? 'xl:col-span-1' : 'lg:col-span-3'}>
-              {/* Mobile navigation when preview is shown */}
-              {showPreview && (
-                <div className="xl:hidden mb-4">
-                  <Card>
-                    <CardContent className="p-2">
-                      <div className="flex overflow-x-auto gap-1">
-                        {menuItems.map((item) => {
-                          const Icon = item.icon
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => setActiveSection(item.id)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${
-                                activeSection === item.id 
-                                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" 
-                                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                              }`}
-                            >
-                              <Icon className="h-4 w-4" />
-                              {item.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              <Card>
+              <Card className="backdrop-blur-sm bg-background/95">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     {(() => {
