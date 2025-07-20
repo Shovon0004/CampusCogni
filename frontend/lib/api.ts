@@ -5,30 +5,39 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`
     const token = localStorage.getItem('token')
     
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    })
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...options.headers,
+        },
+        ...options,
+      })
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }))
-      
-      // If user ID is invalid, clear cached auth data
-      if (error.error === 'Invalid user ID format' || error.error === 'User not found') {
-        localStorage.removeItem('token')
-        localStorage.removeItem('userData')
-        window.location.href = '/auth'
-        return
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }))
+        
+        // If user ID is invalid, clear cached auth data
+        if (error.error === 'Invalid user ID format' || error.error === 'User not found') {
+          localStorage.removeItem('token')
+          localStorage.removeItem('userData')
+          window.location.href = '/auth'
+          return
+        }
+        
+        throw new Error(error.error || `API Error: ${response.statusText}`)
       }
-      
-      throw new Error(error.error || `API Error: ${response.statusText}`)
-    }
 
-    return response.json()
+      return response.json()
+    } catch (error) {
+      // Handle network errors (CORS, connectivity issues)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.error('Network error - check if backend is running:', this.baseUrl)
+        throw new Error('Unable to connect to server. Please check your internet connection and try again.')
+      }
+      throw error
+    }
   }
 
   // Authentication

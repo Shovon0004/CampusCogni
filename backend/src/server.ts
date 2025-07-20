@@ -20,11 +20,46 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 // Middleware
-app.use(helmet())
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://campuscogni.vercel.app', 'https://campus-cogni.vercel.app'],
-  credentials: true,
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
 }))
+
+// CORS configuration for production
+const corsOptions = {
+  origin: function (origin: any, callback: any) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001', 
+      'https://campuscogni.vercel.app',
+      'https://campus-cogni.vercel.app',
+      'https://campuscogni-*.vercel.app', // Allow preview deployments
+    ];
+    
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace('*', '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+      return allowedOrigin === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+app.use(cors(corsOptions))
 app.use(morgan('combined'))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
