@@ -17,6 +17,20 @@ import notificationRoutes from './routes/notifications'
 // Load environment variables
 dotenv.config()
 
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET']
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar])
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars)
+  console.error('Please set these environment variables in your deployment platform')
+  process.exit(1)
+}
+
+console.log('✅ Environment variables loaded successfully')
+console.log('📊 Database URL:', process.env.DATABASE_URL?.includes('localhost') ? 'LOCAL DATABASE' : 'REMOTE DATABASE')
+console.log('🔐 JWT Secret:', process.env.JWT_SECRET ? 'SET' : 'NOT SET')
+
 const app = express()
 const PORT = process.env.PORT || 5000
 
@@ -103,6 +117,8 @@ app.get('/debug/env', (req, res) => {
   const envCheck = {
     NODE_ENV: process.env.NODE_ENV || 'not set',
     DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'not set',
+    DATABASE_TYPE: process.env.DATABASE_URL?.includes('localhost') ? 'LOCAL' : 'REMOTE',
+    DATABASE_HOST: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'unknown',
     JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'not set',
     PORT: process.env.PORT || 'not set',
   }
