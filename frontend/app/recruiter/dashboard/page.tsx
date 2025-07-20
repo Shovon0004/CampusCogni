@@ -376,32 +376,37 @@ export default function RecruiterDashboard() {
               <CardDescription>Common tasks to help you manage recruitment efficiently</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button asChild variant="outline" className="h-20 flex-col">
+              <div className="flex flex-row flex-wrap gap-2">
+                <Button asChild variant="outline" className="flex items-center gap-2 px-4 py-2">
                   <Link href="/recruiter/post-job">
-                    <Plus className="h-6 w-6 mb-2" />
-                    Post New Job
+                    <Plus className="h-5 w-5" />
+                    <span>Post New Job</span>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-20 flex-col">
+                <Button asChild variant="outline" className="flex items-center gap-2 px-4 py-2">
                   <Link href="/recruiter/applications">
-                    <Users className="h-6 w-6 mb-2" />
-                    Review Applications
+                    <Users className="h-5 w-5" />
+                    <span>Review Applications</span>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-20 flex-col">
+                <Button asChild variant="outline" className="flex items-center gap-2 px-4 py-2">
                   <Link href="/recruiter/applications">
-                    <TrendingUp className="h-6 w-6 mb-2" />
-                    View Analytics
+                    <TrendingUp className="h-5 w-5" />
+                    <span>View Analytics</span>
                   </Link>
                 </Button>
-                {/* Show switch button only for users with BOTH roles */}
                 {user?.role === 'BOTH' && (
-                  <Button onClick={handleSwitchToUser} variant="outline" className="h-20 flex-col">
-                    <ArrowLeftRight className="h-6 w-6 mb-2" />
-                    Switch to User Dashboard
+                  <Button onClick={handleSwitchToUser} variant="outline" className="flex items-center gap-2 px-4 py-2">
+                    <ArrowLeftRight className="h-5 w-5" />
+                    <span>Switch to User Dashboard</span>
                   </Button>
                 )}
+                <Button asChild variant="outline" className="flex items-center gap-2 px-4 py-2">
+                  <Link href="/recruiter/candidate-search">
+                    <Users className="h-5 w-5" />
+                    <span>Search Candidates</span>
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
