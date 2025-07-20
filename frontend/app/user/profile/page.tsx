@@ -312,10 +312,10 @@ export default function UserProfilePage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
-        <div className="container mx-auto px-4 py-24">{/* Fixed: Changed py-8 to py-24 */}
+        <div className="container mx-auto px-4 py-24">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
           </div>
@@ -325,7 +325,7 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <BackgroundPaths />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
@@ -381,7 +381,7 @@ export default function UserProfilePage() {
           </div>
 
           {/* Profile Overview */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -502,7 +502,7 @@ export default function UserProfilePage() {
           </Card>
 
           {/* Education */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <GraduationCap className="h-5 w-5" />
@@ -556,7 +556,7 @@ export default function UserProfilePage() {
           </Card>
 
           {/* Work Experience */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Briefcase className="h-5 w-5" />
@@ -602,7 +602,7 @@ export default function UserProfilePage() {
           </Card>
 
           {/* Skills */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="h-5 w-5" />
@@ -629,7 +629,7 @@ export default function UserProfilePage() {
           </Card>
 
           {/* Links */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle>Links</CardTitle>
             </CardHeader>
@@ -708,7 +708,7 @@ export default function UserProfilePage() {
           </Card>
 
           {/* CV Management */}
-          <Card className="mb-8">
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />

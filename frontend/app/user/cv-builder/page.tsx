@@ -328,6 +328,17 @@ export default function CVBuilderPage() {
     }
   }
 
+  // Helper function to safely convert date strings to ISO format
+  const safeISODate = (dateString: string | null | undefined): string | null => {
+    if (!dateString) return null
+    try {
+      const date = new Date(dateString)
+      return isNaN(date.getTime()) ? null : date.toISOString()
+    } catch {
+      return null
+    }
+  }
+
   const handleSaveCV = async () => {
     try {
       setIsLoading(true)
@@ -336,59 +347,91 @@ export default function CVBuilderPage() {
         throw new Error('User ID not found')
       }
 
+      // Validate required CV data
+      if (!cvData.personalInfo.name.trim()) {
+        throw new Error('Name is required')
+      }
+
+      if (!cvData.education[0]?.school?.trim()) {
+        throw new Error('College/School is required')
+      }
+
+      if (!cvData.education[0]?.degree?.trim()) {
+        throw new Error('Course/Degree is required')
+      }
+
+      console.log('Saving CV data for user:', user.id)
+      console.log('CV data structure:', cvData)
+
       // Transform frontend data to backend format
       const backendCVData = {
         personalInfo: {
           firstName: cvData.personalInfo.name.split(' ')[0] || '',
           lastName: cvData.personalInfo.name.split(' ').slice(1).join(' ') || '',
-          phone: cvData.personalInfo.phone,
-          location: cvData.personalInfo.address,
-          bio: cvData.personalInfo.summary,
+          phone: cvData.personalInfo.phone || '',
+          location: cvData.personalInfo.address || '',
+          bio: cvData.personalInfo.summary || '',
         },
         education: {
           college: cvData.education[0]?.school || '',
           course: cvData.education[0]?.degree || '',
-          year: cvData.education[0]?.endDate ? parseInt(cvData.education[0].endDate) : null,
-          cgpa: cvData.education[0]?.gpa ? parseFloat(cvData.education[0].gpa) : null,
+          year: cvData.education[0]?.endDate?.toString() || new Date().getFullYear().toString(),
+          cgpa: cvData.education[0]?.gpa ? parseFloat(cvData.education[0].gpa) : 0.0,
         },
-        skills: cvData.skills,
+        skills: cvData.skills || [],
         projects: cvData.projects.map(proj => ({
-          title: proj.name,
-          description: proj.description,
-          technologies: proj.technologies,
-          link: proj.link,
-          startDate: proj.startDate || null,
-          endDate: proj.endDate || null,
+          title: proj.name || '',
+          description: proj.description || '',
+          technologies: proj.technologies || [],
+          link: proj.link || null,
+          startDate: safeISODate(proj.startDate),
+          endDate: safeISODate(proj.endDate),
         })),
-        experiences: cvData.experience.map(exp => ({
-          company: exp.company,
-          role: exp.position,
-          description: exp.description,
-          startDate: exp.startDate || null,
-          endDate: exp.endDate === "Present" ? null : exp.endDate,
-          current: exp.endDate === "Present",
-        })),
-        certifications: cvData.certifications.map(cert => ({
-          name: cert,
-          issuer: '',
-          dateObtained: null,
-          expiryDate: null,
-          credentialId: '',
-          credentialUrl: '',
-        })),
+        experiences: cvData.experience
+          .filter(exp => exp.company && exp.position) // Only include experiences with required fields
+          .map(exp => ({
+            company: exp.company,
+            role: exp.position,
+            description: exp.description || '',
+            startDate: safeISODate(exp.startDate) || new Date().toISOString(), // Fallback to current date if required
+            endDate: exp.endDate === "Present" ? null : safeISODate(exp.endDate),
+            current: exp.endDate === "Present",
+          })),
+        certifications: cvData.certifications
+          .filter(cert => cert && cert.trim()) // Only include non-empty certifications
+          .map(cert => ({
+            name: cert,
+            issuer: 'Self-reported',
+            dateObtained: new Date().toISOString(), // Use current date as fallback
+            expiryDate: null,
+            credentialId: '',
+            credentialUrl: '',
+          })),
       }
+
+      console.log('Transformed backend data:', backendCVData)
       
-      await apiClient.updateUserCV(user.id, backendCVData)
+      // Call API with detailed error logging
+      const response = await apiClient.updateUserCV(user.id, backendCVData)
+      
+      console.log('API response:', response)
       
       toast({
         title: "Success",
-        description: "CV saved successfully"
+        description: "CV saved successfully!"
       })
-    } catch (error) {
-      console.error("Error saving CV:", error)
+    } catch (error: any) {
+      console.error('Error saving CV:', error)
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        config: error?.config
+      })
+      
       toast({
         title: "Error",
-        description: "Failed to save CV",
+        description: error?.response?.data?.message || error?.message || "Failed to save CV. Please try again.",
         variant: "destructive"
       })
     } finally {
