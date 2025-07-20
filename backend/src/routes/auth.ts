@@ -10,24 +10,44 @@ router.post('/register', async (req: any, res: any) => {
   try {
     const { email, password, role, ...profileData } = req.body
 
+    console.log('Registration attempt:', { email, role, profileData })
+
     // Validate required fields
     if (!email || !password || !role) {
+      console.log('Missing required fields:', { email: !!email, password: !!password, role: !!role })
       return res.status(400).json({ error: 'Email, password, and role are required' })
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      console.log('Invalid email format:', email)
+      return res.status(400).json({ error: 'Invalid email format' })
+    }
+
+    // Validate role
+    if (!['USER', 'RECRUITER', 'BOTH'].includes(role)) {
+      console.log('Invalid role:', role)
+      return res.status(400).json({ error: 'Invalid role. Must be USER, RECRUITER, or BOTH' })
+    }
+
     // Check if user already exists
+    console.log('Checking if user exists...')
     const existingUser = await prisma.user.findUnique({
       where: { email }
     })
 
     if (existingUser) {
+      console.log('User already exists:', email)
       return res.status(400).json({ error: 'User already exists' })
     }
 
     // Hash password
+    console.log('Hashing password...')
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
+    console.log('Creating user...')
     const user = await prisma.user.create({
       data: {
         email,
@@ -35,9 +55,11 @@ router.post('/register', async (req: any, res: any) => {
         role,
       }
     })
+    console.log('User created successfully:', user.id)
 
     // Create profile based on role
     if (role === 'USER') {
+      console.log('Creating student profile...')
       await prisma.student.create({
         data: {
           userId: user.id,
@@ -55,7 +77,9 @@ router.post('/register', async (req: any, res: any) => {
           skills: profileData.skills || [],
         }
       })
+      console.log('Student profile created successfully')
     } else if (role === 'RECRUITER') {
+      console.log('Creating recruiter profile...')
       await prisma.recruiter.create({
         data: {
           userId: user.id,
@@ -70,19 +94,27 @@ router.post('/register', async (req: any, res: any) => {
           description: profileData.description || null,
         }
       })
+      console.log('Recruiter profile created successfully')
     }
 
     // Generate JWT token for automatic login
+    console.log('Generating JWT token...')
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET environment variable is not set')
+      throw new Error('JWT_SECRET not configured')
+    }
+    
     const token = jwt.sign(
       {
         userId: user.id,
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     )
 
+    console.log('Registration completed successfully for:', email)
     res.status(201).json({
       message: 'User created successfully',
       token,
@@ -93,8 +125,15 @@ router.post('/register', async (req: any, res: any) => {
       }
     })
   } catch (error) {
-    console.error('Registration error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error('Registration error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      body: req.body
+    })
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : 'Unknown error' : undefined
+    })
   }
 })
 
