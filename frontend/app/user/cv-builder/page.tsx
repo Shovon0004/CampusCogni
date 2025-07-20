@@ -32,8 +32,13 @@ import {
   Calendar,
   Globe,
   Github,
-  Linkedin
+  Linkedin,
+  Upload
 } from "lucide-react"
+import { CVUpload } from "@/components/cv-upload"
+import { LiveCVPreview } from "@/components/live-cv-preview"
+import { ParsedCVData } from "@/lib/cv-parser"
+import { apiClient } from "@/lib/api"
 
 interface PersonalInfo {
   name: string
@@ -110,10 +115,108 @@ export default function CVBuilderPage() {
     languages: [],
     certifications: []
   })
-  const [activeSection, setActiveSection] = useState("personal")
+  const [activeSection, setActiveSection] = useState("upload")
   const [newSkill, setNewSkill] = useState("")
   const [newLanguage, setNewLanguage] = useState("")
   const [newCertification, setNewCertification] = useState("")
+  const [isUpdatingCV, setIsUpdatingCV] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+
+  const handleCVParsed = async (parsedData: ParsedCVData) => {
+    setIsUpdatingCV(true)
+    setShowPreview(true)
+    
+    // Simulate live updating effect - update sections progressively
+    const updateSequence = [
+      { section: 'personalInfo', delay: 500 },
+      { section: 'education', delay: 800 },
+      { section: 'experience', delay: 1200 },
+      { section: 'projects', delay: 1600 },
+      { section: 'skills', delay: 2000 },
+      { section: 'languages', delay: 2200 },
+      { section: 'certifications', delay: 2400 }
+    ]
+    
+    for (const { section, delay } of updateSequence) {
+      await new Promise(resolve => setTimeout(resolve, delay))
+      
+      setCvData(prev => {
+        const updated = { ...prev }
+        
+        switch (section) {
+          case 'personalInfo':
+            updated.personalInfo = {
+              name: `${parsedData.personalInfo.firstName} ${parsedData.personalInfo.lastName}`.trim() || prev.personalInfo.name,
+              email: parsedData.personalInfo.email || prev.personalInfo.email,
+              phone: parsedData.personalInfo.phone || prev.personalInfo.phone,
+              address: parsedData.personalInfo.location || prev.personalInfo.address,
+              website: prev.personalInfo.website,
+              linkedin: prev.personalInfo.linkedin,
+              github: prev.personalInfo.github,
+              summary: parsedData.personalInfo.summary || prev.personalInfo.summary,
+            }
+            break
+          case 'education':
+            updated.education = parsedData.education.map(edu => ({
+              id: Date.now().toString() + Math.random(),
+              school: edu.institution,
+              degree: edu.degree,
+              field: edu.fieldOfStudy,
+              startDate: edu.startDate,
+              endDate: edu.endDate,
+              gpa: edu.grade || "",
+              achievements: []
+            }))
+            break
+          case 'experience':
+            updated.experience = parsedData.experience.map(exp => ({
+              id: Date.now().toString() + Math.random(),
+              company: exp.company,
+              position: exp.position,
+              startDate: exp.startDate,
+              endDate: exp.endDate,
+              description: exp.description,
+              achievements: []
+            }))
+            break
+          case 'projects':
+            updated.projects = parsedData.projects.map(proj => ({
+              id: Date.now().toString() + Math.random(),
+              name: proj.title,
+              description: proj.description,
+              technologies: proj.technologies || [],
+              link: proj.link || "",
+              startDate: proj.startDate || "",
+              endDate: proj.endDate || ""
+            }))
+            break
+          case 'skills':
+            updated.skills = parsedData.skills || prev.skills
+            break
+          case 'languages':
+            updated.languages = parsedData.languages.map(lang => lang.language) || prev.languages
+            break
+          case 'certifications':
+            updated.certifications = parsedData.certifications.map(cert => cert.name) || prev.certifications
+            break
+        }
+        
+        return updated
+      })
+    }
+    
+    setIsUpdatingCV(false)
+    
+    // Switch to personal info section to show the parsed data
+    setTimeout(() => {
+      setActiveSection("personal")
+    }, 500)
+    
+    toast({
+      title: "CV Imported Successfully! 🎉",
+      description: "Your CV data has been extracted and populated. Review and edit as needed.",
+    })
+  }
 
   useEffect(() => {
     if (loading) return
@@ -134,8 +237,64 @@ export default function CVBuilderPage() {
   const loadCVData = async () => {
     try {
       setIsLoading(true)
-      // Mock data for now - replace with actual API call
-      const mockCVData: CVData = {
+      
+      if (!user?.id) {
+        throw new Error('User ID not found')
+      }
+
+      const cvResponse = await apiClient.getUserCV(user.id)
+      
+      // Transform backend data to frontend format
+      const transformedCVData: CVData = {
+        personalInfo: {
+          name: `${cvResponse.personalInfo.firstName} ${cvResponse.personalInfo.lastName}`.trim(),
+          email: cvResponse.personalInfo.email,
+          phone: cvResponse.personalInfo.phone || "",
+          address: cvResponse.personalInfo.location || "",
+          website: "",
+          linkedin: "",
+          github: "",
+          summary: cvResponse.personalInfo.bio || ""
+        },
+        education: [{
+          id: "education-1",
+          school: cvResponse.education.college || "",
+          degree: cvResponse.education.course || "",
+          field: "",
+          startDate: "",
+          endDate: cvResponse.education.year?.toString() || "",
+          gpa: cvResponse.education.cgpa?.toString() || "",
+          achievements: []
+        }].filter(edu => edu.school || edu.degree), // Only include if there's data
+        experience: cvResponse.experiences?.map((exp: any, index: number) => ({
+          id: `experience-${index}`,
+          company: exp.company,
+          position: exp.role,
+          startDate: exp.startDate || "",
+          endDate: exp.current ? "Present" : (exp.endDate || ""),
+          description: exp.description || "",
+          achievements: []
+        })) || [],
+        projects: cvResponse.projects?.map((proj: any, index: number) => ({
+          id: `project-${index}`,
+          name: proj.title,
+          description: proj.description || "",
+          technologies: Array.isArray(proj.technologies) ? proj.technologies : [],
+          link: proj.link || "",
+          startDate: proj.startDate || "",
+          endDate: proj.endDate || ""
+        })) || [],
+        skills: Array.isArray(cvResponse.skills) ? cvResponse.skills : [],
+        languages: [], // Not in backend schema yet
+        certifications: cvResponse.certifications?.map((cert: any) => cert.name) || []
+      }
+
+      setCvData(transformedCVData)
+    } catch (error) {
+      console.error("Error loading CV data:", error)
+      
+      // If CV data doesn't exist, start with default data
+      const defaultCVData: CVData = {
         personalInfo: {
           name: user?.profile?.name || user?.email?.split('@')[0] || "",
           email: user?.email || "",
@@ -154,14 +313,16 @@ export default function CVBuilderPage() {
         certifications: []
       }
 
-      setCvData(mockCVData)
-    } catch (error) {
-      console.error("Error loading CV data:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load CV data",
-        variant: "destructive"
-      })
+      setCvData(defaultCVData)
+      
+      // Only show error if it's not a "not found" error
+      if (!(error instanceof Error) || !error.message.includes('not found')) {
+        toast({
+          title: "Error",
+          description: "Failed to load CV data",
+          variant: "destructive"
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -170,8 +331,54 @@ export default function CVBuilderPage() {
   const handleSaveCV = async () => {
     try {
       setIsLoading(true)
-      // Mock API call - replace with actual implementation
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      if (!user?.id) {
+        throw new Error('User ID not found')
+      }
+
+      // Transform frontend data to backend format
+      const backendCVData = {
+        personalInfo: {
+          firstName: cvData.personalInfo.name.split(' ')[0] || '',
+          lastName: cvData.personalInfo.name.split(' ').slice(1).join(' ') || '',
+          phone: cvData.personalInfo.phone,
+          location: cvData.personalInfo.address,
+          bio: cvData.personalInfo.summary,
+        },
+        education: {
+          college: cvData.education[0]?.school || '',
+          course: cvData.education[0]?.degree || '',
+          year: cvData.education[0]?.endDate ? parseInt(cvData.education[0].endDate) : null,
+          cgpa: cvData.education[0]?.gpa ? parseFloat(cvData.education[0].gpa) : null,
+        },
+        skills: cvData.skills,
+        projects: cvData.projects.map(proj => ({
+          title: proj.name,
+          description: proj.description,
+          technologies: proj.technologies,
+          link: proj.link,
+          startDate: proj.startDate || null,
+          endDate: proj.endDate || null,
+        })),
+        experiences: cvData.experience.map(exp => ({
+          company: exp.company,
+          role: exp.position,
+          description: exp.description,
+          startDate: exp.startDate || null,
+          endDate: exp.endDate === "Present" ? null : exp.endDate,
+          current: exp.endDate === "Present",
+        })),
+        certifications: cvData.certifications.map(cert => ({
+          name: cert,
+          issuer: '',
+          dateObtained: null,
+          expiryDate: null,
+          credentialId: '',
+          credentialUrl: '',
+        })),
+      }
+      
+      await apiClient.updateUserCV(user.id, backendCVData)
       
       toast({
         title: "Success",
@@ -359,7 +566,8 @@ export default function CVBuilderPage() {
     }))
   }
 
-  const menuItems = [
+    const menuItems = [
+    { id: "upload", label: "Upload CV", icon: Upload },
     { id: "personal", label: "Personal Info", icon: User },
     { id: "education", label: "Education", icon: GraduationCap },
     { id: "experience", label: "Experience", icon: Briefcase },
@@ -374,7 +582,7 @@ export default function CVBuilderPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 pt-24">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
           </div>
@@ -388,7 +596,8 @@ export default function CVBuilderPage() {
       <BackgroundPaths />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
-      <div className="container mx-auto px-4 py-8">
+      {/* Add proper top padding to account for floating navbar */}
+      <div className="container mx-auto px-4 py-8 pt-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -408,6 +617,14 @@ export default function CVBuilderPage() {
               </div>
               <div className="flex gap-2">
                 <Button
+                  onClick={() => setShowPreview(!showPreview)}
+                  variant={showPreview ? "default" : "outline"}
+                  disabled={isLoading}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {showPreview ? "Hide Preview" : "Live Preview"}
+                </Button>
+                <Button
                   onClick={handleSaveCV}
                   disabled={isLoading}
                   className="bg-green-600 hover:bg-green-700"
@@ -423,50 +640,76 @@ export default function CVBuilderPage() {
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={isLoading}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
-                </Button>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Navigation */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Sections</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="space-y-1">
-                    {menuItems.map((item) => {
-                      const Icon = item.icon
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setActiveSection(item.id)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                            activeSection === item.id 
-                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600" 
-                              : "text-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          <Icon className="h-5 w-5" />
-                          {item.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div className={`grid gap-8 transition-all duration-500 ${
+            showPreview ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1 lg:grid-cols-4'
+          }`}>
+            {/* Navigation - hide when preview is shown on smaller screens */}
+            {!showPreview && (
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Sections</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="space-y-1">
+                      {menuItems.map((item) => {
+                        const Icon = item.icon
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => setActiveSection(item.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                              activeSection === item.id 
+                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600" 
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5" />
+                            {item.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Content */}
-            <div className="lg:col-span-3">
+            <div className={showPreview ? 'xl:col-span-1' : 'lg:col-span-3'}>
+              {/* Mobile navigation when preview is shown */}
+              {showPreview && (
+                <div className="xl:hidden mb-4">
+                  <Card>
+                    <CardContent className="p-2">
+                      <div className="flex overflow-x-auto gap-1">
+                        {menuItems.map((item) => {
+                          const Icon = item.icon
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => setActiveSection(item.id)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${
+                                activeSection === item.id 
+                                  ? "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" 
+                                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              }`}
+                            >
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -483,6 +726,23 @@ export default function CVBuilderPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* Upload CV Section */}
+                  {activeSection === "upload" && (
+                    <div className="space-y-6">
+                      <CVUpload 
+                        onCVParsed={handleCVParsed}
+                        isLoading={isLoading}
+                      />
+                      
+                      <div className="text-center">
+                        <Separator className="my-6" />
+                        <p className="text-sm text-muted-foreground">
+                          Or skip and fill out your CV manually using the sections on the left
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Personal Info Section */}
                   {activeSection === "personal" && (
                     <div className="space-y-6">
@@ -948,6 +1208,18 @@ export default function CVBuilderPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Live Preview */}
+            {showPreview && (
+              <div className="xl:col-span-1">
+                <div className="sticky top-8">
+                  <LiveCVPreview 
+                    cvData={cvData} 
+                    isUpdating={isUpdatingCV}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

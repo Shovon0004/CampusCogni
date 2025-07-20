@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { GridBackground } from "@/components/grid-background"
+import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
@@ -313,7 +313,7 @@ export default function UserProfilePage() {
   if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <GridBackground />
+        <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
         <div className="container mx-auto px-4 py-24">{/* Fixed: Changed py-8 to py-24 */}
           <div className="flex items-center justify-center min-h-[60vh]">
@@ -326,7 +326,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <GridBackground />
+      <BackgroundPaths />
       <FloatingNavbar userRole={user?.role} userName={user?.email} />
       
       <div className="container mx-auto px-4 py-24">{/* Fixed: Changed py-8 to py-24 for proper navbar spacing */}
