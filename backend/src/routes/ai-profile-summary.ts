@@ -27,7 +27,7 @@ interface GeminiResponse {
   candidates: GeminiCandidate[];
 }
 
-const router: import("express").Router = Router();
+const router: Router = Router();
 
 const SEARCH_CANDIDATE_API_KEY_GROQ = process.env.SEARCH_CANDIDATE_API_KEY_GROQ;
 const GEMINI_API_KEY = process.env.SEARCH_CANDIDATE_API_KEY;

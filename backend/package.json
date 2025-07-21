@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "prisma generate && tsc",
-    "start": "nodemon src/server.js",
+    "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
     "postinstall": "prisma generate",
     "deploy": "npm run build && npm start",

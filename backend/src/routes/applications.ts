@@ -1,8 +1,8 @@
-import express from 'express'
+import express, { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { UserRole } from '@prisma/client'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // Get applications
 router.get('/', async (req: any, res: any) => {

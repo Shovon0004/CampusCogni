@@ -1,8 +1,8 @@
-import express, { Request, Response, NextFunction } from 'express'
+import express, { Request, Response, NextFunction, Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // Get all jobs
 router.get('/', async (req: any, res: any) => {
