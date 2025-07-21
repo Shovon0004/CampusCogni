@@ -5,10 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
+    "start": "node setup-db.js && node dist/server.js",
     "dev": "nodemon src/server.ts",
     "postinstall": "prisma generate",
-    "deploy": "prisma db push --force-reset && npm run build && npm start",
+    "deploy": "node setup-db.js && node dist/server.js",
+    "setup:db": "node setup-db.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
