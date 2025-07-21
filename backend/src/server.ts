@@ -129,7 +129,7 @@ async function initializeDatabase() {
   }
 }
 
-const app = express()
+const app: express.Application = express()
 const PORT = process.env.PORT || 5000
 
 // Middleware

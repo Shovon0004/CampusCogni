@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import multer from 'multer'
 
-const router = express.Router()
+const router: express.Router = express.Router()
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage()

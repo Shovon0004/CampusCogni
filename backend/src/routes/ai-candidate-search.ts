@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getCandidateMatches, getExpandedSkills } from "../lib/gemini";
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 router.post("/", async (req: Request, res: Response) => {
   try {
