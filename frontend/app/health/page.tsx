@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getApiUrl, getBaseUrl } from '@/lib/config'
 
 export default function HealthCheck() {
   const [backendHealth, setBackendHealth] = useState<any>(null)
@@ -18,8 +19,9 @@ export default function HealthCheck() {
   const [testEmail, setTestEmail] = useState('test@example.com')
   const [testPassword, setTestPassword] = useState('testpassword123')
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'
+  const apiUrl = getBaseUrl()
   const currentEnvironment = process.env.NODE_ENV || 'development'
+  const expectedApiUrl = getApiUrl()
 
   const checkHealth = async () => {
     setLoading(true)
@@ -106,7 +108,7 @@ export default function HealthCheck() {
             <div>
               <strong>Expected API URL:</strong> 
               <code className="bg-gray-100 px-2 py-1 rounded text-sm ml-2">
-                {process.env.NEXT_PUBLIC_API_URL}
+                {expectedApiUrl}
               </code>
             </div>
           </div>

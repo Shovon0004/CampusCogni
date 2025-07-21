@@ -1,13 +1,11 @@
+import { getApiUrl, logApiConfig } from './config'
+
 class ApiClient {
-  private baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+  private baseUrl = getApiUrl()
 
   constructor() {
-    // Log the API URL being used (always log to debug deployment issues)
-    if (typeof window !== 'undefined') {
-      console.log('🌐 API Client initialized with URL:', this.baseUrl)
-      console.log('🔧 Environment:', process.env.NODE_ENV)
-      console.log('🔧 NEXT_PUBLIC_API_URL env var:', process.env.NEXT_PUBLIC_API_URL)
-    }
+    // Log the API configuration for debugging
+    logApiConfig()
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {

@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createWorker } from 'tesseract.js';
+import { getGeminiApiKey } from './config';
 
-const genAI = new GoogleGenerativeAI('AIzaSyBqyh8spZXLKcmIWe2lIBCPwuAWMIYeVBA');
+// Initialize Google Generative AI with environment variable
+const getGeminiClient = () => {
+  const apiKey = getGeminiApiKey();
+  return new GoogleGenerativeAI(apiKey);
+};
 
 export interface ParsedCVData {
   personalInfo: {
@@ -55,6 +60,7 @@ export interface ParsedCVData {
 
 export async function parseCVWithGemini(fileContent: string, fileName: string): Promise<ParsedCVData> {
   try {
+    const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         const prompt = `

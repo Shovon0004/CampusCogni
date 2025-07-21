@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { getApiUrl, logApiConfig } from '@/lib/config'
 
 interface User {
   id: string
@@ -25,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Log API configuration for debugging
+    logApiConfig()
     checkAuth()
   }, [])
 
@@ -59,8 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Verify with backend that user still exists
+      const apiUrl = getApiUrl()
       try {
-        const response = await fetch(`http://localhost:5000/api/students/${userData.id}`, {
+        const response = await fetch(`${apiUrl}/students/${userData.id}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -101,8 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     try {
-      // Use the proper backend login endpoint
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      // Use the proper backend login endpoint with environment variable
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/upgrade-to-recruiter', {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/auth/upgrade-to-recruiter`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

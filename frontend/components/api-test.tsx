@@ -1,17 +1,19 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import { getApiUrl, getBaseUrl } from '@/lib/config'
 
 export default function ApiTest() {
   const [apiUrl, setApiUrl] = useState<string>('')
   const [testResult, setTestResult] = useState<string>('')
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+    const url = getApiUrl()
+    const baseUrl = getBaseUrl()
     setApiUrl(url)
     
     // Test the API URL
-    fetch(`${url.replace('/api', '')}/health`)
+    fetch(`${baseUrl}/health`)
       .then(res => res.json())
       .then(data => {
         setTestResult(`✅ API Connected: ${JSON.stringify(data)}`)
