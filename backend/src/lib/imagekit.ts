@@ -5,6 +5,16 @@ const IMAGEKIT_PUBLIC_KEY = process.env.IMAGEKIT_PUBLIC_KEY;
 const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY;
 const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT;
 
+// Cache for authentication parameters
+interface AuthCache {
+  params: any;
+  timestamp: number;
+  ttl: number; // Time to live in milliseconds
+}
+
+let authCache: AuthCache | null = null;
+const AUTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 // Validate environment variables
 const validateImageKitConfig = () => {
   const missing = [];
@@ -100,6 +110,24 @@ export const getImageKitAuthParams = () => {
     throw new Error('ImageKit service is not available. Please check environment variables.');
   }
   
+  const now = Date.now();
+  
+  // Return cached params if still valid
+  if (authCache && (now - authCache.timestamp) < authCache.ttl) {
+    console.log('📋 Using cached ImageKit auth params');
+    return authCache.params;
+  }
+  
+  // Generate new auth params and cache them
   const imagekit = getImageKit();
-  return imagekit.getAuthenticationParameters();
+  const params = imagekit.getAuthenticationParameters();
+  
+  authCache = {
+    params,
+    timestamp: now,
+    ttl: AUTH_CACHE_TTL
+  };
+  
+  console.log('🔄 Generated new ImageKit auth params (cached for 10 minutes)');
+  return params;
 };

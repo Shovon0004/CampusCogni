@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -8,11 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { BentoCard } from "@/components/ui/bento-card"
 import { BentoGrid } from "@/components/ui/bento-grid"
+import { Skeleton, StatCardSkeleton, JobCardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
+
+// Lazy load heavy components that aren't immediately needed
+const CachedAvatar = lazy(() => import("@/components/cached-avatar").then(m => ({ default: m.CachedAvatar })))
+const RoutePreloader = lazy(() => import("@/components/route-preloader").then(m => ({ default: m.RoutePreloader })))
+const PerformanceMonitor = lazy(() => import("@/components/performance-monitor").then(m => ({ default: m.PerformanceMonitor })))
+
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
-import { apiClient } from "@/lib/api"
+import { useUserProfile, useDashboardStats, useJobs, useUserApplications } from "@/hooks/use-cached-data"
+import { cachedApiClient } from "@/lib/cached-api-client"
 import { 
   Briefcase, 
   MapPin, 
@@ -45,14 +53,41 @@ export default function UserDashboard() {
   const { user, loading, upgradeToRecruiter } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(true)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [stats, setStats] = useState({
+  
+  // Use cached hooks for data fetching with proper guards
+  const { data: userProfile, loading: profileLoading } = useUserProfile(user?.id || '', { enabled: !!user?.id })
+  const { data: stats, loading: statsLoading } = useDashboardStats(user?.id || '', user?.role || '', { 
+    enabled: !!user?.id && !!user?.role 
+  })
+  const { data: jobsData, loading: jobsLoading, refresh: refreshJobs } = useJobs(1, undefined, { enabled: !!user })
+  const { data: applications, loading: applicationsLoading } = useUserApplications(user?.id || '', { 
+    enabled: !!user?.id 
+  })
+  
+  const isLoading = profileLoading || statsLoading || jobsLoading || applicationsLoading
+  
+  // Provide fallback stats to prevent null reference errors
+  const dashboardStats = stats || {
     totalApplications: 0,
     savedJobs: 0,
     interviewsScheduled: 0
-  })
+  }
+  
+  // Process jobs data to include applied status
+  const jobs = jobsData?.jobs?.map((job: any) => ({
+    id: job.id,
+    title: job.title,
+    company: job.recruiter?.company || 'Unknown Company',
+    location: job.location,
+    type: job.type,
+    stipend: job.stipend,
+    description: job.description,
+    requirements: job.requirements || '',
+    postedDate: new Date(job.createdAt).toISOString().split('T')[0],
+    saved: false, // TODO: Implement saved jobs functionality
+    applied: applications?.some((app: any) => app.job?.id === job.id) || false,
+    ownJob: job.recruiter && job.recruiter.userId && user?.id && job.recruiter.userId === user.id
+  })) || []
 
   useEffect(() => {
     console.log('User dashboard - Current user:', user)
@@ -75,16 +110,12 @@ export default function UserDashboard() {
       router.push('/recruiter/dashboard')
       return
     }
-
-    if (user) {
-      fetchDashboardData()
-    }
   }, [user, loading, router])
 
   const checkAndUpdateUserRole = async () => {
     try {
       console.log('Checking and updating user role for dual profiles...')
-      const roleUpdateResponse = await apiClient.updateUserRole(user!.id, user!.role)
+      const roleUpdateResponse = await cachedApiClient.updateUserRole(user!.id, user!.role)
       
       if (roleUpdateResponse.roleUpdated && roleUpdateResponse.newRole === 'BOTH') {
         console.log('Role updated from', roleUpdateResponse.oldRole, 'to', roleUpdateResponse.newRole)
@@ -92,93 +123,23 @@ export default function UserDashboard() {
         // Update the user in context and localStorage
         const updatedUser = { ...user!, role: 'BOTH' }
         localStorage.setItem('userData', JSON.stringify(updatedUser))
-        
-        // Continue with loading the dashboard
-        fetchDashboardData()
       } else if (roleUpdateResponse.newRole === 'RECRUITER') {
         // User only has recruiter profile, redirect to recruiter dashboard
         console.log('User only has recruiter profile, redirecting...')
         router.push('/recruiter/dashboard')
-      } else {
-        // Continue with user dashboard
-        fetchDashboardData()
       }
+      // Data will be automatically fetched by cached hooks
     } catch (error) {
       console.error('Failed to check/update user role:', error)
-      // If role check fails, still try to load dashboard
-      fetchDashboardData()
-    }
-  }
-
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true)
-      
-      // Fetch user profile to get name
-      try {
-        const profileResponse = await apiClient.getUserProfile(user!.id)
-        setUserProfile(profileResponse)
-      } catch (profileError) {
-        console.log('Could not fetch user profile:', profileError)
-        // Continue without profile data
-      }
-      
-      // Fetch jobs from backend
-      const jobsResponse = await apiClient.getJobs()
-      const fetchedJobs = jobsResponse.jobs || []
-      
-      // Fetch user applications to check applied status
-      const applicationsResponse = await apiClient.getUserApplications(user!.id)
-      const userApplications = applicationsResponse || []
-      
-      // Map jobs with applied status and ownership
-      const jobsWithStatus = fetchedJobs.map((job: any) => ({
-        id: job.id,
-        title: job.title,
-        company: job.recruiter?.company || 'Unknown Company',
-        location: job.location,
-        type: job.type,
-        stipend: job.stipend,
-        description: job.description,
-        requirements: job.requirements || '',
-        postedDate: new Date(job.createdAt).toISOString().split('T')[0],
-        saved: false, // TODO: Implement saved jobs functionality
-        applied: userApplications.some((app: any) => app.job?.id === job.id),
-        ownJob: job.recruiter && job.recruiter.userId && user?.id && job.recruiter.userId === user.id
-      }))
-      
-      // Calculate stats
-      const stats = {
-        totalApplications: userApplications.length,
-        savedJobs: 0, // TODO: Implement saved jobs functionality
-        interviewsScheduled: userApplications.filter((app: any) => app.status === 'INTERVIEW_SCHEDULED').length
-      }
-
-      setJobs(jobsWithStatus)
-      setStats(stats)
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      })
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const handleApplyToJob = async (jobId: string) => {
     try {
-      await apiClient.applyToJob(jobId, user!.id)
+      await cachedApiClient.applyToJob(jobId, user!.id)
       
-      setJobs(prevJobs => 
-        prevJobs.map(job => 
-          job.id === jobId 
-            ? { ...job, applied: true }
-            : job
-        )
-      )
+      // Refresh applications data to update UI
+      await refreshJobs() // This will trigger a refresh of jobs and applications
       
       toast({
         title: "Application Submitted",
@@ -195,14 +156,7 @@ export default function UserDashboard() {
   }
 
   const handleSaveJob = (jobId: string) => {
-    setJobs(prevJobs => 
-      prevJobs.map(job => 
-        job.id === jobId 
-          ? { ...job, saved: !job.saved }
-          : job
-      )
-    )
-    
+    // TODO: Implement save job functionality with caching
     toast({
       title: "Job Saved",
       description: "Job has been saved to your list!",
@@ -219,12 +173,13 @@ export default function UserDashboard() {
     }
   }
 
-  if (loading || isLoading) {
+  // Show loading only for authentication, not data
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
@@ -234,6 +189,17 @@ export default function UserDashboard() {
     <div className="min-h-screen">
       <BackgroundPaths />
       <FloatingNavbar userRole={user?.role} userName={user?.email || "User"} />
+      
+      {/* Preload common routes and data for better performance */}
+      <Suspense fallback={null}>
+        <RoutePreloader userId={user?.id} userRole={user?.role} />
+        
+        {/* Monitor performance for optimization */}
+        <PerformanceMonitor 
+          pageName="User Dashboard" 
+          onLoadComplete={(time) => console.log(`Dashboard loaded in ${time}ms`)} 
+        />
+      </Suspense>
 
       <div className="container mx-auto px-4 py-24">
         <motion.div
@@ -251,45 +217,55 @@ export default function UserDashboard() {
 
           {/* Stats Cards - Bento Style */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <BentoCard
-              title="Total Applications"
-              description="Track your job application progress"
-              icon={<Briefcase className="h-4 w-4 text-blue-500" />}
-              status="Active"
-              meta={`${stats.totalApplications} sent`}
-              cta="View All →"
-              onClick={() => router.push('/user/applications')}
-            >
-              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {stats.totalApplications}
-              </div>
-            </BentoCard>
+            {statsLoading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <BentoCard
+                  title="Total Applications"
+                  description="Track your job application progress"
+                  icon={<Briefcase className="h-4 w-4 text-blue-500" />}
+                  status="Active"
+                  meta={`${dashboardStats.totalApplications || applications?.length || 0} sent`}
+                  cta="View All →"
+                  onClick={() => router.push('/user/applications')}
+                >
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {dashboardStats.totalApplications || applications?.length || 0}
+                  </div>
+                </BentoCard>
 
-            <BentoCard
-              title="Saved Jobs"
-              description="Your bookmarked opportunities"
-              icon={<Heart className="h-4 w-4 text-red-500" />}
-              status="Updated"
-              meta={`${stats.savedJobs} saved`}
-              cta="Browse →"
-            >
-              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {stats.savedJobs}
-              </div>
-            </BentoCard>
+                <BentoCard
+                  title="Saved Jobs"
+                  description="Your bookmarked opportunities"
+                  icon={<Heart className="h-4 w-4 text-red-500" />}
+                  status="Updated"
+                  meta={`${dashboardStats.savedJobs || 0} saved`}
+                  cta="Browse →"
+                >
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {dashboardStats.savedJobs || 0}
+                  </div>
+                </BentoCard>
 
-            <BentoCard
-              title="Interviews"
-              description="Upcoming interview schedule"
-              icon={<Users className="h-4 w-4 text-green-500" />}
-              status="Scheduled"
-              meta={`${stats.interviewsScheduled} upcoming`}
-              cta="Schedule →"
-            >
-              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {stats.interviewsScheduled}
-              </div>
-            </BentoCard>
+                <BentoCard
+                  title="Interviews"
+                  description="Upcoming interview schedule"
+                  icon={<Users className="h-4 w-4 text-green-500" />}
+                  status="Scheduled"
+                  meta={`${dashboardStats.interviewsScheduled || 0} upcoming`}
+                  cta="Schedule →"
+                >
+                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {dashboardStats.interviewsScheduled || 0}
+                  </div>
+                </BentoCard>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -306,14 +282,12 @@ export default function UserDashboard() {
 
                   {/* Job Listings - Enhanced Bento Cards */}
                   <div className="space-y-4">
-                    {loading ? (
+                    {jobsLoading ? (
                       Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                        </div>
+                        <JobCardSkeleton key={i} />
                       ))
-                    ) : (
-                      jobs.slice(0, 5).map((job) => (
+                    ) : jobs.length > 0 ? (
+                      jobs.slice(0, 5).map((job: Job) => (
                         <BentoCard
                           key={job.id}
                           variant="large"
@@ -333,6 +307,14 @@ export default function UserDashboard() {
                           </div>
                         </BentoCard>
                       ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No jobs available at the moment.</p>
+                        <Button asChild variant="outline" className="mt-4">
+                          <a href="/jobs">Browse All Jobs</a>
+                        </Button>
+                      </div>
                     )}
                   </div>
             </div>            {/* Sidebar */}
