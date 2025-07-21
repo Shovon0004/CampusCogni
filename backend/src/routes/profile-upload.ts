@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { prisma } from '../lib/prisma';
-import { uploadToImageKit, getImageKitAuthParams } from '../lib/imagekit';
+import { uploadToImageKit, getImageKitAuthParams, isImageKitAvailable } from '../lib/imagekit';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
@@ -24,6 +24,14 @@ const upload = multer({
 // Get ImageKit authentication parameters
 router.get('/auth', authenticateToken, (req: Request, res: Response) => {
   try {
+    if (!isImageKitAvailable()) {
+      res.status(503).json({ 
+        error: 'ImageKit service is currently unavailable',
+        message: 'Profile picture upload is disabled' 
+      });
+      return;
+    }
+    
     const authParams = getImageKitAuthParams();
     res.json(authParams);
   } catch (error) {
@@ -35,6 +43,14 @@ router.get('/auth', authenticateToken, (req: Request, res: Response) => {
 // Upload profile picture for student
 router.post('/student/profile-picture', authenticateToken, upload.single('profilePic'), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!isImageKitAvailable()) {
+      res.status(503).json({
+        error: 'Profile picture upload is currently unavailable',
+        message: 'ImageKit service not configured'
+      });
+      return;
+    }
+
     const userId = (req as any).user.id;
     
     if (!req.file) {
@@ -77,6 +93,14 @@ router.post('/student/profile-picture', authenticateToken, upload.single('profil
 // Upload profile picture for recruiter
 router.post('/recruiter/profile-picture', authenticateToken, upload.single('profilePic'), async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!isImageKitAvailable()) {
+      res.status(503).json({
+        error: 'Profile picture upload is currently unavailable',
+        message: 'ImageKit service not configured'
+      });
+      return;
+    }
+
     const userId = (req as any).user.id;
     
     if (!req.file) {
@@ -121,6 +145,14 @@ router.post('/recruiter/profile-picture', authenticateToken, upload.single('prof
 // Delete profile picture for student
 router.delete('/student/profile-picture', authenticateToken, async (req: Request, res: Response) => {
   try {
+    if (!isImageKitAvailable()) {
+      res.status(503).json({
+        error: 'Profile picture service is currently unavailable',
+        message: 'ImageKit service not configured'
+      });
+      return;
+    }
+
     const userId = (req as any).user.id;
 
     // Update student profile to remove profile picture
@@ -143,6 +175,14 @@ router.delete('/student/profile-picture', authenticateToken, async (req: Request
 // Delete profile picture for recruiter
 router.delete('/recruiter/profile-picture', authenticateToken, async (req: Request, res: Response) => {
   try {
+    if (!isImageKitAvailable()) {
+      res.status(503).json({
+        error: 'Profile picture service is currently unavailable',
+        message: 'ImageKit service not configured'
+      });
+      return;
+    }
+
     const userId = (req as any).user.id;
 
     // Update recruiter profile to remove profile picture

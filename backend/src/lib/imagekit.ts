@@ -1,10 +1,57 @@
 import ImageKit from 'imagekit';
 
-const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_sezax9w5r',
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || '',
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/sezax9w5r'
-});
+// Environment variables for ImageKit
+const IMAGEKIT_PUBLIC_KEY = process.env.IMAGEKIT_PUBLIC_KEY;
+const IMAGEKIT_PRIVATE_KEY = process.env.IMAGEKIT_PRIVATE_KEY;
+const IMAGEKIT_URL_ENDPOINT = process.env.IMAGEKIT_URL_ENDPOINT;
+
+// Validate environment variables
+const validateImageKitConfig = () => {
+  const missing = [];
+  
+  if (!IMAGEKIT_PUBLIC_KEY) missing.push('IMAGEKIT_PUBLIC_KEY');
+  if (!IMAGEKIT_PRIVATE_KEY) missing.push('IMAGEKIT_PRIVATE_KEY');
+  if (!IMAGEKIT_URL_ENDPOINT) missing.push('IMAGEKIT_URL_ENDPOINT');
+  
+  if (missing.length > 0) {
+    console.warn('⚠️ ImageKit configuration incomplete. Missing:', missing.join(', '));
+    console.warn('⚠️ Profile picture upload will be disabled until environment variables are set');
+    return false;
+  }
+  
+  return true;
+};
+
+// Initialize ImageKit only if all environment variables are present
+let imagekit: ImageKit | null = null;
+
+if (validateImageKitConfig()) {
+  try {
+    imagekit = new ImageKit({
+      publicKey: IMAGEKIT_PUBLIC_KEY!,
+      privateKey: IMAGEKIT_PRIVATE_KEY!,
+      urlEndpoint: IMAGEKIT_URL_ENDPOINT!,
+    });
+    console.log('✅ ImageKit initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize ImageKit:', error);
+  }
+} else {
+  console.log('⚠️ ImageKit not initialized - missing environment variables');
+}
+
+// Helper function to check if ImageKit is available
+export const isImageKitAvailable = (): boolean => {
+  return imagekit !== null;
+};
+
+// Safe getter for ImageKit instance
+export const getImageKit = (): ImageKit => {
+  if (!imagekit) {
+    throw new Error('ImageKit is not initialized. Please check environment variables.');
+  }
+  return imagekit;
+};
 
 export default imagekit;
 
@@ -13,7 +60,12 @@ export const uploadToImageKit = async (
   fileName: string,
   folder: string = 'profile-pictures'
 ): Promise<string> => {
+  if (!isImageKitAvailable()) {
+    throw new Error('ImageKit service is not available. Please check environment variables.');
+  }
+  
   try {
+    const imagekit = getImageKit();
     const uploadResponse = await imagekit.upload({
       file: file,
       fileName: fileName,
@@ -30,7 +82,12 @@ export const uploadToImageKit = async (
 };
 
 export const deleteFromImageKit = async (fileId: string): Promise<void> => {
+  if (!isImageKitAvailable()) {
+    throw new Error('ImageKit service is not available. Please check environment variables.');
+  }
+  
   try {
+    const imagekit = getImageKit();
     await imagekit.deleteFile(fileId);
   } catch (error) {
     console.error('ImageKit delete error:', error);
@@ -39,5 +96,10 @@ export const deleteFromImageKit = async (fileId: string): Promise<void> => {
 };
 
 export const getImageKitAuthParams = () => {
+  if (!isImageKitAvailable()) {
+    throw new Error('ImageKit service is not available. Please check environment variables.');
+  }
+  
+  const imagekit = getImageKit();
   return imagekit.getAuthenticationParameters();
 };
