@@ -62,14 +62,14 @@ const MAX_HEIGHT = 164
 const AnimatedPlaceholder = ({ showSearch }: { showSearch: boolean }) => (
   <AnimatePresence mode="wait">
     <motion.p
-      key={showSearch ? "search" : "ask"}
+      key={showSearch ? "search" : "reasoning"}
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
       transition={{ duration: 0.1 }}
-      className="pointer-events-none w-[150px] text-sm absolute text-black/70 dark:text-white/70"
+      className="pointer-events-none text-sm absolute text-black/70 dark:text-white/70 whitespace-nowrap"
     >
-      {showSearch ? "Search the web..." : "Ask Skiper Ai..."}
+      {showSearch ? "Search for candidates..." : "Search with deep knowledge..."}
     </motion.p>
   </AnimatePresence>
 )
@@ -194,18 +194,18 @@ export function AiInput() {
                 className={cn(
                   "rounded-full transition-all flex items-center gap-2 px-1.5 py-1 border h-8",
                   showSearch
-                    ? "bg-[#ff3f17]/15 border-[#ff3f17] text-[#ff3f17]"
-                    : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+                    ? "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+                    : "bg-[#ff3f17]/15 border-[#ff3f17] text-[#ff3f17]"
                 )}
               >
                 <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
                   <motion.div
                     animate={{
-                      rotate: showSearch ? 180 : 0,
-                      scale: showSearch ? 1.1 : 1,
+                      rotate: showSearch ? 0 : 180,
+                      scale: showSearch ? 1 : 1.1,
                     }}
                     whileHover={{
-                      rotate: showSearch ? 180 : 15,
+                      rotate: showSearch ? 15 : 180,
                       scale: 1.1,
                       transition: {
                         type: "spring",
@@ -222,13 +222,13 @@ export function AiInput() {
                     <Globe
                       className={cn(
                         "w-4 h-4",
-                        showSearch ? "text-[#ff3f17]" : "text-inherit"
+                        showSearch ? "text-inherit" : "text-[#ff3f17]"
                       )}
                     />
                   </motion.div>
                 </div>
                 <AnimatePresence>
-                  {showSearch && (
+                  {!showSearch && (
                     <motion.span
                       initial={{ width: 0, opacity: 0 }}
                       animate={{
@@ -239,7 +239,7 @@ export function AiInput() {
                       transition={{ duration: 0.2 }}
                       className="text-sm overflow-hidden whitespace-nowrap text-[#ff3f17] flex-shrink-0"
                     >
-                      Search
+                      Reasoning
                     </motion.span>
                   )}
                 </AnimatePresence>
