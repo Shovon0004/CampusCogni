@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, Loader2, AlertCircle, X, Download } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Upload, FileText, Loader2, AlertCircle, X, Download, CheckCircle } from 'lucide-react';
 import { extractTextFromFile, parseCVWithGemini, ParsedCVData } from '@/lib/cv-parser';
 
 interface CVUploadProps {
@@ -214,10 +217,10 @@ export function CVUpload({ onCVParsed, isLoading = false }: CVUploadProps) {
             size="lg"
           >
             {parsing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Parsing CV with AI...
-              </>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <span>Parsing CV with AI...</span>
+              </div>
             ) : (
               <>
                 <CheckCircle className="mr-2 h-4 w-4" />

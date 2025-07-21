@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton, CardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -626,8 +627,16 @@ export default function CVBuilderPage() {
         <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
         <div className="container mx-auto px-4 py-8 pt-24">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <CardSkeleton className="h-48" />
+              <CardSkeleton className="h-64" />
+              <CardSkeleton className="h-32" />
+            </div>
+            <div className="space-y-6">
+              <CardSkeleton className="h-96" />
+              <CardSkeleton className="h-24" />
+            </div>
           </div>
         </div>
       </div>

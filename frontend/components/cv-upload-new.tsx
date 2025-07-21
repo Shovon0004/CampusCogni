@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Upload, FileText, Loader2, AlertCircle, X } from 'lucide-react';
 import { extractTextFromFile, parseCVWithGemini, ParsedCVData } from '@/lib/cv-parser';
 
@@ -214,10 +215,10 @@ export function CVUpload({ onCVParsed, isLoading = false }: CVUploadProps) {
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5"
           >
             {parsing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing resume...
-              </>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <span>Analyzing resume...</span>
+              </div>
             ) : (
               <>
                 <Upload className="mr-2 h-4 w-4" />

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton, CardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useToast } from "@/hooks/use-toast"
@@ -174,10 +175,17 @@ const PostJobPage: React.FC = () => {
 
   if (loadingProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+      <div className="min-h-screen">
+        <BackgroundPaths />
+        <FloatingNavbar userRole="RECRUITER" userName={user?.email || "Recruiter"} />
+        <div className="container mx-auto px-4 py-24">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <CardSkeleton className="h-32" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <CardSkeleton className="h-96" />
+              <CardSkeleton className="h-96" />
+            </div>
+          </div>
         </div>
       </div>
     )

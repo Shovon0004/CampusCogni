@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BentoCard } from "@/components/ui/bento-card"
 import { BentoGrid } from "@/components/ui/bento-grid"
+import { Skeleton, CardSkeleton, StatCardSkeleton, JobCardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -215,10 +216,23 @@ export default function RecruiterDashboard() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+      <div className="min-h-screen">
+        <BackgroundPaths />
+        <FloatingNavbar userRole={user?.role as "USER" | "RECRUITER" | "BOTH"} userName={user?.email || "Recruiter"} />
+        <div className="container mx-auto px-4 py-24">
+          <div className="max-w-6xl mx-auto space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <CardSkeleton className="h-64" />
+              <CardSkeleton className="h-64" />
+            </div>
+            <JobCardSkeleton />
+          </div>
         </div>
       </div>
     )

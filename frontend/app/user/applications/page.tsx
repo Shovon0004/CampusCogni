@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton, CardSkeleton, JobCardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -140,10 +141,19 @@ export default function UserApplicationsPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading applications...</p>
+      <div className="min-h-screen">
+        <BackgroundPaths />
+        <FloatingNavbar userRole={user?.role} userName={user?.email} />
+        <div className="container mx-auto px-4 py-24">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <CardSkeleton className="h-32" />
+            <div className="grid gap-6">
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+              <JobCardSkeleton />
+            </div>
+          </div>
         </div>
       </div>
     )

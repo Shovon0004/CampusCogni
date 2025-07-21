@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton, CardSkeleton, StatCardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -316,8 +317,17 @@ export default function UserProfilePage() {
         <BackgroundPaths />
         <FloatingNavbar userRole={user?.role} userName={user?.email} />
         <div className="container mx-auto px-4 py-24">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
+                <CardSkeleton className="h-64" />
+              </div>
+              <div className="lg:col-span-2 space-y-6">
+                <CardSkeleton className="h-48" />
+                <CardSkeleton className="h-32" />
+                <CardSkeleton className="h-24" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
