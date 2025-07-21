@@ -138,10 +138,7 @@ app.use(helmet({
 }))
 
 // Add compression for better performance
-app.use(compression({
-  level: 6, // Compression level (1-9, 6 is good balance)
-  threshold: 1024, // Only compress responses larger than 1KB
-}))
+app.use(compression())
 
 // CORS configuration for production
 const corsOptions = {
