@@ -2,7 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
-import morgan from 'morgan' 
+import morgan from 'morgan'
+import compression from 'compression'
+import rateLimit from 'express-rate-limit'
 import { prisma } from './lib/prisma'
 import { execSync } from 'child_process'
 
@@ -131,10 +133,49 @@ async function initializeDatabase() {
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// Rate limiting configuration
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 auth attempts per windowMs
+  message: {
+    error: 'Too many authentication attempts, please try again later.',
+    retryAfter: '15 minutes'
+  },
+})
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 3, // limit uploads
+  message: {
+    error: 'Too many uploads, please wait before uploading again.',
+    retryAfter: '1 minute'
+  },
+})
+
 // Middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }))
+
+// Add compression for better performance
+app.use(compression({
+  level: 6, // Compression level (1-9, 6 is good balance)
+  threshold: 1024, // Only compress responses larger than 1KB
+}))
+
+// Apply global rate limiting
+app.use(globalLimiter)
 
 // CORS configuration for production
 const corsOptions = {
@@ -176,17 +217,30 @@ app.use(morgan('combined'))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
-// Health check
+// Health check with performance metrics
 app.get('/health', async (req, res) => {
   try {
     // Check database connection
+    const dbStart = Date.now()
     await prisma.$queryRaw`SELECT 1`
+    const dbTime = Date.now() - dbStart
+    
+    const memUsage = process.memoryUsage()
     
     res.json({ 
       status: 'OK', 
       timestamp: new Date().toISOString(),
       database: 'connected',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      performance: {
+        databaseResponseTime: `${dbTime}ms`,
+        uptime: `${Math.round(process.uptime())}s`,
+        memoryUsage: {
+          heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+          heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+          rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`
+        }
+      }
     })
   } catch (error) {
     console.error('Health check failed:', error)
@@ -224,16 +278,16 @@ app.get('/debug/env', (req, res) => {
   res.json(envCheck)
 })
 
-// API Routes
-app.use('/api/auth', authRoutes)
+// API Routes with specific rate limiting
+app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/students', studentRoutes)
 app.use('/api/recruiters', recruiterRoutes)
 app.use('/api/jobs', jobRoutes)
 app.use('/api/applications', applicationRoutes)
-app.use('/api/upload', uploadRoutes)
+app.use('/api/upload', uploadLimiter, uploadRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/health', healthRoutes)
-app.use('/api/profile-upload', profileUploadRoutes)
+app.use('/api/profile-upload', uploadLimiter, profileUploadRoutes)
 app.use('/api/ai-candidate-search', aiCandidateSearchRoutes);
 app.use('/api/ai-profile-summary', aiProfileSummaryRoutes);
 
@@ -260,12 +314,42 @@ async function startServer() {
     
     // Start the server
     console.log('🔄 [SERVER] Starting HTTP server on port', PORT)
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 [SERVER] Server running on port ${PORT}`)
       console.log(`📱 [SERVER] Environment: ${process.env.NODE_ENV || 'development'}`)
       console.log(`🌐 [SERVER] Health check: http://localhost:${PORT}/health`)
       console.log(`🔧 [SERVER] Debug env: http://localhost:${PORT}/debug/env`)
     })
+
+    // Graceful shutdown handling
+    const gracefulShutdown = async (signal: string) => {
+      console.log(`🔄 [SERVER] ${signal} received, starting graceful shutdown...`)
+      
+      server.close(async () => {
+        console.log('🔄 [SERVER] HTTP server closed')
+        
+        try {
+          await prisma.$disconnect()
+          console.log('✅ [SERVER] Database disconnected')
+          console.log('👋 [SERVER] Graceful shutdown completed')
+          process.exit(0)
+        } catch (error) {
+          console.error('❌ [SERVER] Error during shutdown:', error)
+          process.exit(1)
+        }
+      })
+      
+      // Force close after 10 seconds
+      setTimeout(() => {
+        console.error('❌ [SERVER] Forceful shutdown after timeout')
+        process.exit(1)
+      }, 10000)
+    }
+
+    // Listen for shutdown signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+    
   } catch (error: any) {
     console.error('❌ [SERVER] Failed to start server:', error?.message || error)
     console.error('❌ [SERVER] Stack trace:', error?.stack)
