@@ -6,6 +6,8 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { BentoCard } from "@/components/ui/bento-card"
+import { BentoGrid } from "@/components/ui/bento-grid"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -36,6 +38,7 @@ interface Job {
   postedDate: string
   saved: boolean
   applied: boolean
+  ownJob?: boolean
 }
 
 export default function UserDashboard() {
@@ -246,173 +249,190 @@ export default function UserDashboard() {
             <p className="text-muted-foreground">Discover amazing career opportunities and track your applications.</p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
-                    <p className="text-2xl font-bold">{stats.totalApplications}</p>
-                  </div>
-                  <Briefcase className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
+          {/* Stats Cards - Bento Style */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <BentoCard
+              title="Total Applications"
+              description="Track your job application progress"
+              icon={<Briefcase className="h-4 w-4 text-blue-500" />}
+              status="Active"
+              meta={`${stats.totalApplications} sent`}
+              cta="View All →"
+              onClick={() => router.push('/user/applications')}
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.totalApplications}
+              </div>
+            </BentoCard>
 
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Saved Jobs</p>
-                    <p className="text-2xl font-bold">{stats.savedJobs}</p>
-                  </div>
-                  <Heart className="h-8 w-8 text-red-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title="Saved Jobs"
+              description="Your bookmarked opportunities"
+              icon={<Heart className="h-4 w-4 text-red-500" />}
+              status="Updated"
+              meta={`${stats.savedJobs} saved`}
+              cta="Browse →"
+              hasPersistentHover={stats.savedJobs > 0}
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.savedJobs}
+              </div>
+            </BentoCard>
 
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Interviews Scheduled</p>
-                    <p className="text-2xl font-bold">{stats.interviewsScheduled}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title="Interviews"
+              description="Upcoming interview schedule"
+              icon={<Users className="h-4 w-4 text-green-500" />}
+              status="Scheduled"
+              meta={`${stats.interviewsScheduled} upcoming`}
+              tags={["Calendar", "Interview"]}
+              cta="Schedule →"
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.interviewsScheduled}
+              </div>
+            </BentoCard>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Job Listings */}
+            {/* Job Listings - Bento Style */}
             <div className="lg:col-span-2">
-              <Card className="backdrop-blur-sm bg-background/95">
-                <CardHeader>
-                  <CardTitle>Available Jobs</CardTitle>
-                  <CardDescription>Browse and apply to jobs that match your skills</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {jobs.map((job) => (
-                      <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{job.title}</h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                              <div className="flex items-center gap-1">
-                                <Building className="h-4 w-4" />
-                                {job.company}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {job.location}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {job.postedDate}
-                              </div>
-                            </div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">Available Jobs</h2>
+                <p className="text-muted-foreground">Browse and apply to jobs that match your skills</p>
+              </div>
+              
+              <div className="grid gap-4">
+                {jobs.map((job) => (
+                  <BentoCard
+                    key={job.id}
+                    title={job.title}
+                    description={job.description}
+                    icon={<Building className="h-4 w-4 text-blue-500" />}
+                    status={job.applied ? "Applied" : job.ownJob ? "Your Job" : "Open"}
+                    meta={job.company}
+                    tags={[job.type, job.location]}
+                    cta={job.applied ? "Applied ✓" : job.ownJob ? "Manage →" : "Apply →"}
+                    hasPersistentHover={!job.applied && !job.ownJob}
+                    variant="large"
+                    className="w-full"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Building className="h-4 w-4" />
+                            {job.company}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={job.type === 'Internship' ? 'secondary' : 'default'}>
-                              {job.type}
-                            </Badge>
-                            <Badge variant="outline">{job.stipend}</Badge>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            {job.location}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {job.postedDate}
                           </div>
                         </div>
-                        
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                          {job.description}
-                        </p>
-                        
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {job.requirements && job.requirements.split(',').map((req, index) => (
+                        <div className="flex items-center gap-2">
+                          <Badge variant={job.type === 'Internship' ? 'secondary' : 'default'}>
+                            {job.type}
+                          </Badge>
+                          <Badge variant="outline">{job.stipend}</Badge>
+                        </div>
+                      </div>
+                      
+                      {job.requirements && (
+                        <div className="flex flex-wrap gap-2">
+                          {job.requirements.split(',').slice(0, 3).map((req, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {req.trim()}
                             </Badge>
                           ))}
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleApplyToJob(job.id)}
-                            disabled={job.applied || job.ownJob}
-                            className="flex-1"
-                          >
-                            {job.ownJob
-                              ? "Your Job"
-                              : job.applied
-                                ? "Applied"
-                                : "Apply Now"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => handleSaveJob(job.id)}
-                            className="px-3"
-                          >
-                            <Heart className={`h-4 w-4 ${job.saved ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
+                      )}
+                      
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          onClick={() => handleApplyToJob(job.id)}
+                          disabled={job.applied || job.ownJob}
+                          className="flex-1"
+                        >
+                          {job.ownJob
+                            ? "Your Job"
+                            : job.applied
+                              ? "Applied"
+                              : "Apply Now"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleSaveJob(job.id)}
+                          className="px-3"
+                        >
+                          <Heart className={`h-4 w-4 ${job.saved ? 'fill-current text-red-500' : ''}`} />
+                        </Button>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  </BentoCard>
+                ))}
+              </div>
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Quick Actions */}
-              <Card className="backdrop-blur-sm bg-background/95">
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button asChild variant="outline" className="w-full justify-start">
+            <div className="space-y-4">
+              {/* Quick Actions - Bento Style */}
+              <BentoCard
+                title="Quick Actions"
+                description="Navigate to key features"
+                icon={<Star className="h-4 w-4 text-yellow-500" />}
+                status="Ready"
+                tags={["Navigation", "Tools"]}
+              >
+                <div className="space-y-2">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <a href="/user/applications">
                       <Briefcase className="h-4 w-4 mr-2" />
                       View My Applications
                     </a>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <a href="/user/profile">
                       <Users className="h-4 w-4 mr-2" />
                       Update Profile
                     </a>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <a href="/user/cv-builder">
                       <BookOpen className="h-4 w-4 mr-2" />
                       Build CV
                     </a>
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </BentoCard>
 
-              {/* Recruiter Access CTA */}
-              <Card className="backdrop-blur-sm bg-background/95">
-                <CardHeader>
-                  <CardTitle>
-                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' ? 'Recruiting' : 'Hiring?'}
-                  </CardTitle>
-                  <CardDescription>
-                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' 
-                      ? 'Access your recruiter dashboard and manage jobs'
-                      : 'Switch to recruiting mode and start posting jobs'
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={handleBecomeRecruiter} className="w-full">
-                    {user?.role === 'RECRUITER' || user?.role === 'BOTH' 
-                      ? <><ArrowLeftRight className="h-4 w-4 mr-2" />Switch to Recruiter Dashboard</>
-                      : <><TrendingUp className="h-4 w-4 mr-2" />Become a Recruiter</>
-                    }
-                  </Button>
-                </CardContent>
-              </Card>
+              {/* Recruiter Access CTA - Bento Style */}
+              <BentoCard
+                title={user?.role === 'RECRUITER' || user?.role === 'BOTH' ? 'Recruiting' : 'Hiring?'}
+                description={user?.role === 'RECRUITER' || user?.role === 'BOTH' 
+                  ? 'Access your recruiter dashboard and manage jobs'
+                  : 'Switch to recruiting mode and start posting jobs'
+                }
+                icon={user?.role === 'RECRUITER' || user?.role === 'BOTH' 
+                  ? <ArrowLeftRight className="h-4 w-4 text-blue-500" />
+                  : <TrendingUp className="h-4 w-4 text-purple-500" />
+                }
+                status={user?.role === 'RECRUITER' || user?.role === 'BOTH' ? 'Active' : 'Available'}
+                tags={user?.role === 'RECRUITER' || user?.role === 'BOTH' ? ["Dashboard", "Active"] : ["Upgrade", "Opportunity"]}
+                cta="Get Started →"
+                hasPersistentHover={user?.role !== 'RECRUITER' && user?.role !== 'BOTH'}
+                onClick={handleBecomeRecruiter}
+              >
+                <Button onClick={handleBecomeRecruiter} className="w-full mt-3">
+                  {user?.role === 'RECRUITER' || user?.role === 'BOTH' 
+                    ? <><ArrowLeftRight className="h-4 w-4 mr-2" />Switch to Recruiter Dashboard</>
+                    : <><TrendingUp className="h-4 w-4 mr-2" />Become a Recruiter</>
+                  }
+                </Button>
+              </BentoCard>
             </div>
           </div>
         </motion.div>

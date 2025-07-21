@@ -6,6 +6,8 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { BentoCard } from "@/components/ui/bento-card"
+import { BentoGrid } from "@/components/ui/bento-grid"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -239,55 +241,65 @@ export default function RecruiterDashboard() {
             <p className="text-muted-foreground">Here's what's happening with your recruitment activities.</p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Jobs</p>
-                    <p className="text-2xl font-bold">{stats.totalJobs}</p>
-                  </div>
-                  <Briefcase className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
+          {/* Stats Cards - Bento Style */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <BentoCard
+              title="Total Jobs"
+              description="Active job postings"
+              icon={<Briefcase className="h-4 w-4 text-blue-500" />}
+              status="Active"
+              meta={`${stats.totalJobs} posted`}
+              cta="Manage →"
+              onClick={() => router.push('/recruiter/post-job')}
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.totalJobs}
+              </div>
+            </BentoCard>
 
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
-                    <p className="text-2xl font-bold">{stats.totalApplications}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title="Applications"
+              description="Total applications received"
+              icon={<Users className="h-4 w-4 text-purple-500" />}
+              status="Updated"
+              meta={`${stats.totalApplications} total`}
+              tags={["Candidates"]}
+              cta="Review →"
+              hasPersistentHover={stats.pendingApplications > 0}
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.totalApplications}
+              </div>
+            </BentoCard>
 
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
-                    <p className="text-2xl font-bold">{stats.pendingApplications}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-yellow-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title="Pending Review"
+              description="Applications awaiting review"
+              icon={<Clock className="h-4 w-4 text-yellow-500" />}
+              status="Urgent"
+              meta={`${stats.pendingApplications} waiting`}
+              tags={["Review", "Priority"]}
+              cta="Review Now →"
+              hasPersistentHover={stats.pendingApplications > 0}
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.pendingApplications}
+              </div>
+            </BentoCard>
 
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Accepted</p>
-                    <p className="text-2xl font-bold">{stats.acceptedApplications}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title="Accepted"
+              description="Successfully hired candidates"
+              icon={<CheckCircle className="h-4 w-4 text-green-500" />}
+              status="Success"
+              meta={`${stats.acceptedApplications} hired`}
+              tags={["Success", "Hired"]}
+              cta="View →"
+            >
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.acceptedApplications}
+              </div>
+            </BentoCard>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
