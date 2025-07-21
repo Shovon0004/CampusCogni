@@ -23,7 +23,7 @@ export default function CandidateSearchPage() {
       console.log('AI search raw response:', res)
       setResults(res.matches || [])
       console.log('AI search results:', res.matches || [])
-      setInputValue("") // Clear input only after successful search
+      // setInputValue("") // Do not clear input after search
     } catch (err: any) {
       setError(err.message || "Search failed")
     } finally {
