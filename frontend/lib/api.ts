@@ -1,9 +1,23 @@
 class ApiClient {
   private baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
+  constructor() {
+    // Log the API URL being used (always log to debug deployment issues)
+    if (typeof window !== 'undefined') {
+      console.log('🌐 API Client initialized with URL:', this.baseUrl)
+      console.log('🔧 Environment:', process.env.NODE_ENV)
+      console.log('🔧 NEXT_PUBLIC_API_URL env var:', process.env.NEXT_PUBLIC_API_URL)
+    }
+  }
+
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`
     const token = localStorage.getItem('token')
+    
+    // Log API calls (always log to debug deployment issues)
+    if (typeof window !== 'undefined') {
+      console.log('🔗 API Request:', url)
+    }
     
     try {
       const response = await fetch(url, {

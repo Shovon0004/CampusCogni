@@ -19,6 +19,7 @@ export default function HealthCheck() {
   const [testPassword, setTestPassword] = useState('testpassword123')
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'
+  const currentEnvironment = process.env.NODE_ENV || 'development'
 
   const checkHealth = async () => {
     setLoading(true)
@@ -89,15 +90,43 @@ export default function HealthCheck() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* API Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>API Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <strong>Frontend Environment:</strong> 
+              <Badge variant={currentEnvironment === 'production' ? 'default' : 'secondary'} className="ml-2">
+                {currentEnvironment}
+              </Badge>
+            </div>
+            <div>
+              <strong>Expected API URL:</strong> 
+              <code className="bg-gray-100 px-2 py-1 rounded text-sm ml-2">
+                {process.env.NEXT_PUBLIC_API_URL}
+              </code>
+            </div>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+            <strong>⚠️ If you see localhost:5000 in production:</strong>
+            <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
+              <li>Go to Vercel Dashboard → Your Project → Settings → Environment Variables</li>
+              <li>Add: <code>NEXT_PUBLIC_API_URL = https://campuscogni.onrender.com/api</code></li>
+              <li>Redeploy your Vercel app</li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>System Health Check</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL}
-          </div>
-          
           <div className="flex items-center gap-2">
             <strong>Backend Status:</strong>
             {loading ? (
@@ -136,7 +165,7 @@ export default function HealthCheck() {
       {envCheck && (
         <Card>
           <CardHeader>
-            <CardTitle>Environment Variables</CardTitle>
+            <CardTitle>Backend Environment Variables</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="bg-gray-100 p-2 rounded text-sm">
