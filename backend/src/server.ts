@@ -47,36 +47,44 @@ async function initializeDatabase() {
   try {
     console.log('🔄 [DB INIT] Current NODE_ENV:', process.env.NODE_ENV)
     
-    // Always try to run migrations/push in production or if tables don't exist
-    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
-      console.log('📋 [DB INIT] Running database migrations...')
-      
-      try {
-        // First try migrations
-        console.log('📋 [DB INIT] Attempting prisma migrate deploy...')
-        execSync('npx prisma migrate deploy', { 
-          stdio: 'inherit',
-          cwd: process.cwd(),
-          env: { ...process.env }
-        })
-        console.log('✅ [DB INIT] Migrations completed successfully')
-      } catch (migrationError: any) {
-        console.error('⚠️ [DB INIT] Migration failed, attempting database push...')
-        console.error('Migration error:', migrationError?.message || migrationError)
+    // Check if using Prisma Accelerate
+    const isAccelerate = process.env.DATABASE_URL?.startsWith('prisma://')
+    
+    if (isAccelerate) {
+      console.log('🚀 [DB INIT] Using Prisma Accelerate - skipping migrations/push')
+      console.log('ℹ️ [DB INIT] Note: Database schema should be managed separately for Accelerate')
+    } else {
+      // Only run migrations/push for direct database connections
+      if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
+        console.log('📋 [DB INIT] Running database migrations...')
         
         try {
-          // Fallback to db push if migrations fail
-          console.log('📋 [DB INIT] Attempting prisma db push...')
-          execSync('npx prisma db push', { 
+          // First try migrations
+          console.log('📋 [DB INIT] Attempting prisma migrate deploy...')
+          execSync('npx prisma migrate deploy', { 
             stdio: 'inherit',
             cwd: process.cwd(),
             env: { ...process.env }
           })
-          console.log('✅ [DB INIT] Database push completed successfully')
-        } catch (pushError: any) {
-          console.error('❌ [DB INIT] Both migration and push failed!')
-          console.error('Push error:', pushError?.message || pushError)
-          throw new Error(`Database setup failed: ${pushError?.message || pushError}`)
+          console.log('✅ [DB INIT] Migrations completed successfully')
+        } catch (migrationError: any) {
+          console.error('⚠️ [DB INIT] Migration failed, attempting database push...')
+          console.error('Migration error:', migrationError?.message || migrationError)
+          
+          try {
+            // Fallback to db push if migrations fail
+            console.log('📋 [DB INIT] Attempting prisma db push...')
+            execSync('npx prisma db push', { 
+              stdio: 'inherit',
+              cwd: process.cwd(),
+              env: { ...process.env }
+            })
+            console.log('✅ [DB INIT] Database push completed successfully')
+          } catch (pushError: any) {
+            console.error('❌ [DB INIT] Both migration and push failed!')
+            console.error('Push error:', pushError?.message || pushError)
+            throw new Error(`Database setup failed: ${pushError?.message || pushError}`)
+          }
         }
       }
     }
