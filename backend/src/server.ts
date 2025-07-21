@@ -279,17 +279,20 @@ app.get('/debug/env', (req, res) => {
 })
 
 // API Routes with specific rate limiting
-app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/auth', authLimiter)
+app.use('/api/auth', authRoutes)
 app.use('/api/students', studentRoutes)
 app.use('/api/recruiters', recruiterRoutes)
 app.use('/api/jobs', jobRoutes)
 app.use('/api/applications', applicationRoutes)
-app.use('/api/upload', uploadLimiter, uploadRoutes)
+app.use('/api/upload', uploadLimiter)
+app.use('/api/upload', uploadRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/health', healthRoutes)
-app.use('/api/profile-upload', uploadLimiter, profileUploadRoutes)
-app.use('/api/ai-candidate-search', aiCandidateSearchRoutes);
-app.use('/api/ai-profile-summary', aiProfileSummaryRoutes);
+app.use('/api/profile-upload', uploadLimiter)
+app.use('/api/profile-upload', profileUploadRoutes)
+app.use('/api/ai-candidate-search', aiCandidateSearchRoutes)
+app.use('/api/ai-profile-summary', aiProfileSummaryRoutes)
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
