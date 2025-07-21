@@ -18,6 +18,11 @@ import notificationRoutes from './routes/notifications'
 // Load environment variables
 dotenv.config()
 
+console.log('🚀 Starting CampusCogni Backend Server...')
+console.log('📊 Current working directory:', process.cwd())
+console.log('📊 Node version:', process.version)
+console.log('📊 Platform:', process.platform)
+
 // Validate required environment variables
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET']
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar])
@@ -31,54 +36,82 @@ if (missingEnvVars.length > 0) {
 console.log('✅ Environment variables loaded successfully')
 console.log('📊 Database URL:', process.env.DATABASE_URL?.includes('localhost') ? 'LOCAL DATABASE' : 'REMOTE DATABASE')
 console.log('🔐 JWT Secret:', process.env.JWT_SECRET ? 'SET' : 'NOT SET')
+console.log('🌍 NODE_ENV:', process.env.NODE_ENV || 'development')
 
 // Initialize database on startup
 async function initializeDatabase() {
+  console.log('🔄 [DB INIT] Starting database initialization...')
+  
   try {
-    console.log('🔄 Initializing database...')
+    console.log('🔄 [DB INIT] Current NODE_ENV:', process.env.NODE_ENV)
     
-    // Run migrations in production
-    if (process.env.NODE_ENV === 'production') {
-      console.log('📋 Running database migrations...')
+    // Always try to run migrations/push in production or if tables don't exist
+    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development') {
+      console.log('📋 [DB INIT] Running database migrations...')
+      
       try {
+        // First try migrations
+        console.log('📋 [DB INIT] Attempting prisma migrate deploy...')
         execSync('npx prisma migrate deploy', { 
           stdio: 'inherit',
           cwd: process.cwd(),
           env: { ...process.env }
         })
-        console.log('✅ Migrations completed successfully')
+        console.log('✅ [DB INIT] Migrations completed successfully')
       } catch (migrationError: any) {
-        console.error('⚠️ Migration failed, attempting database push...')
+        console.error('⚠️ [DB INIT] Migration failed, attempting database push...')
         console.error('Migration error:', migrationError?.message || migrationError)
         
-        // Fallback to db push if migrations fail
-        execSync('npx prisma db push --force-reset', { 
-          stdio: 'inherit',
-          cwd: process.cwd(),
-          env: { ...process.env }
-        })
-        console.log('✅ Database push completed successfully')
+        try {
+          // Fallback to db push if migrations fail
+          console.log('📋 [DB INIT] Attempting prisma db push...')
+          execSync('npx prisma db push', { 
+            stdio: 'inherit',
+            cwd: process.cwd(),
+            env: { ...process.env }
+          })
+          console.log('✅ [DB INIT] Database push completed successfully')
+        } catch (pushError: any) {
+          console.error('❌ [DB INIT] Both migration and push failed!')
+          console.error('Push error:', pushError?.message || pushError)
+          throw new Error(`Database setup failed: ${pushError?.message || pushError}`)
+        }
       }
     }
     
     // Test database connection
+    console.log('🔍 [DB INIT] Testing database connection...')
     await prisma.$queryRaw`SELECT 1`
-    console.log('✅ Database connection verified')
+    console.log('✅ [DB INIT] Database connection verified')
     
     // Check tables
+    console.log('📊 [DB INIT] Checking database tables...')
     const tableCount: any = await prisma.$queryRaw`
       SELECT COUNT(*) as count 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
     `
-    console.log(`📊 Database has ${tableCount[0].count} tables`)
+    console.log(`📊 [DB INIT] Database has ${tableCount[0].count} tables`)
     
     if (tableCount[0].count === 0) {
+      console.error('❌ [DB INIT] No tables found in database!')
       throw new Error('No tables found in database - migration may have failed')
     }
     
+    // List tables for debugging
+    const tables: any = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `
+    console.log('📋 [DB INIT] Tables found:', tables.map((t: any) => t.table_name).join(', '))
+    
+    console.log('🎉 [DB INIT] Database initialization completed successfully!')
+    
   } catch (error: any) {
-    console.error('❌ Database initialization failed:', error?.message || error)
+    console.error('❌ [DB INIT] Database initialization failed:', error?.message || error)
+    console.error('❌ [DB INIT] Full error:', error)
     throw error
   }
 }
@@ -201,22 +234,35 @@ app.use((req, res) => {
 
 // Start server with database initialization
 async function startServer() {
+  console.log('🚀 [SERVER] Starting server initialization...')
+  
   try {
     // Initialize database first
+    console.log('🔄 [SERVER] About to initialize database...')
     await initializeDatabase()
+    console.log('✅ [SERVER] Database initialization completed')
     
     // Start the server
+    console.log('🔄 [SERVER] Starting HTTP server on port', PORT)
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`)
-      console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`)
+      console.log(`🚀 [SERVER] Server running on port ${PORT}`)
+      console.log(`📱 [SERVER] Environment: ${process.env.NODE_ENV || 'development'}`)
+      console.log(`🌐 [SERVER] Health check: http://localhost:${PORT}/health`)
+      console.log(`🔧 [SERVER] Debug env: http://localhost:${PORT}/debug/env`)
     })
   } catch (error: any) {
-    console.error('❌ Failed to start server:', error?.message || error)
+    console.error('❌ [SERVER] Failed to start server:', error?.message || error)
+    console.error('❌ [SERVER] Stack trace:', error?.stack)
+    console.error('❌ [SERVER] Exiting process...')
     process.exit(1)
   }
 }
 
+console.log('🎯 [MAIN] About to start server...')
 // Start the application
-startServer()
+startServer().catch((error) => {
+  console.error('❌ [MAIN] Unhandled error in startServer:', error)
+  process.exit(1)
+})
 
 export default app
