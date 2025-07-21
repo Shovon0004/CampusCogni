@@ -72,6 +72,7 @@ model Recruiter {
   companySize CompanySize @default(STARTUP)
   industry    String
   description String?
+  profilePic  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   

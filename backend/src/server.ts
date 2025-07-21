@@ -14,6 +14,8 @@ import jobRoutes from './routes/jobs'
 import applicationRoutes from './routes/applications'
 import uploadRoutes from './routes/upload'
 import notificationRoutes from './routes/notifications'
+import healthRoutes from './routes/health'
+import profileUploadRoutes from './routes/profile-upload'
 
 // Load environment variables
 dotenv.config()
@@ -220,6 +222,8 @@ app.use('/api/jobs', jobRoutes)
 app.use('/api/applications', applicationRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/health', healthRoutes)
+app.use('/api/profile-upload', profileUploadRoutes)
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
