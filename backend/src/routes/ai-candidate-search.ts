@@ -1,6 +1,6 @@
 import express from "express";
 import { prisma } from "../lib/prisma";
-import { getCandidateMatches } from "../lib/gemini";
+import { getCandidateMatches, getExpandedSkills } from "../lib/gemini";
 
 const router = express.Router();
 
@@ -17,11 +17,24 @@ router.post("/", async (req: any, res: any) => {
       },
     });
 
-    const matches = await getCandidateMatches(prompt, candidates, mode);
+    const { matches, suggested } = await getCandidateMatches(prompt, candidates, mode);
 
-    res.json({ matches });
+    res.json({ matches, suggested });
   } catch (error) {
     console.error("AI candidate search error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Debug endpoint for skill expansion
+router.post("/expand-skills", async (req: any, res: any) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+  try {
+    const skills = await getExpandedSkills(prompt);
+    res.json({ skills });
+  } catch (error) {
+    console.error("Skill expansion error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

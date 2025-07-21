@@ -13,15 +13,31 @@ export default function CandidateSearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
+  const [suggested, setSuggested] = useState<any[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
 
   async function handleSearch(prompt: string, mode: "normal" | "reasoning") {
     setLoading(true)
     setError(null)
     setResults([])
+    setSuggested([])
+    setHasSearched(true)
     try {
       const res = await apiClient.searchCandidates(prompt, mode)
       console.log('AI search raw response:', res)
-      setResults(res.matches || [])
+      let matches = res.matches;
+      let suggestedProfiles = res.suggested;
+      // If matches or suggested are objects (not arrays), convert to array of values
+      if (matches && !Array.isArray(matches) && typeof matches === 'object') {
+        matches = Object.values(matches);
+      }
+      if (suggestedProfiles && !Array.isArray(suggestedProfiles) && typeof suggestedProfiles === 'object') {
+        suggestedProfiles = Object.values(suggestedProfiles);
+      }
+      matches = Array.isArray(matches) ? matches : [];
+      suggestedProfiles = Array.isArray(suggestedProfiles) ? suggestedProfiles : [];
+      setResults(matches);
+      setSuggested(suggestedProfiles);
       console.log('AI search results:', res.matches || [])
       // setInputValue("") // Do not clear input after search
     } catch (err: any) {
@@ -30,6 +46,14 @@ export default function CandidateSearchPage() {
       setLoading(false)
     }
   }
+
+  // Compute filtered and sorted matches
+  const strongMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) >= 70)
+    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
+  const weakMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) < 70)
+    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
+
+  const hasAnyProfiles = strongMatches.length > 0 || weakMatches.length > 0 || suggested.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -40,22 +64,64 @@ export default function CandidateSearchPage() {
         <AiInput onSearch={handleSearch} value={inputValue} onValueChange={setInputValue} />
         {loading && <div className="mt-8 text-lg text-muted-foreground">Searching candidates...</div>}
         {error && <div className="mt-8 text-red-500">{error}</div>}
-        {results.length > 0 && (
+        {strongMatches.length > 0 && (
           <div className="mt-8 w-full max-w-2xl space-y-4">
-            {results.map((candidate, idx) => (
-              <div key={candidate.name + idx} className="p-4 rounded-lg border bg-background/80 flex flex-col md:flex-row md:items-center justify-between">
-                <div>
-                  <div className="font-semibold text-lg">{candidate.name}</div>
-                  {candidate.skills && <div className="text-sm text-muted-foreground">Skills: {Array.isArray(candidate.skills) ? candidate.skills.join(", ") : candidate.skills}</div>}
-                  {candidate.bio && <div className="text-sm text-muted-foreground">{candidate.bio}</div>}
+            <div className="font-semibold text-lg mb-2">Top Matches</div>
+            {strongMatches.map((candidate, idx) => (
+              (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
+                <div key={`${candidate.name || 'candidate'}-${idx}`} className="p-4 rounded-lg border bg-background/80 flex flex-col md:flex-row md:items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-lg">{candidate.name || "Unnamed Candidate"}</div>
+                    {candidate.skills && candidate.skills.length > 0 && <div className="text-sm text-muted-foreground">Skills: {Array.isArray(candidate.skills) ? candidate.skills.join(", ") : candidate.skills}</div>}
+                    {candidate.bio && <div className="text-sm text-muted-foreground">{candidate.bio}</div>}
+                  </div>
+                  <div className="mt-2 md:mt-0 md:ml-4 flex items-center gap-2">
+                    <span className="text-xl font-bold">{candidate.match || candidate.matchPercentage || candidate.match_percent || 0}%</span>
+                    <span className="text-xs text-muted-foreground">match</span>
+                  </div>
                 </div>
-                <div className="mt-2 md:mt-0 md:ml-4 flex items-center gap-2">
-                  <span className="text-xl font-bold">{candidate.match || candidate.matchPercentage || candidate.match_percent || 0}%</span>
-                  <span className="text-xs text-muted-foreground">match</span>
-                </div>
-              </div>
+              )
             ))}
           </div>
+        )}
+        {strongMatches.length === 0 && weakMatches.length > 0 && (
+          <div className="mt-8 w-full max-w-2xl space-y-4">
+            <div className="font-semibold text-lg mb-2 text-white">No top matches found. Here are some relevant profiles:</div>
+            {weakMatches.map((candidate, idx) => (
+              (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
+                <div key={`${candidate.name || 'candidate'}-${idx}`} className="p-4 rounded-lg border bg-background/80 flex flex-col md:flex-row md:items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-lg">{candidate.name || "Unnamed Candidate"}</div>
+                    {candidate.skills && candidate.skills.length > 0 && <div className="text-sm text-muted-foreground">Skills: {Array.isArray(candidate.skills) ? candidate.skills.join(", ") : candidate.skills}</div>}
+                    {candidate.bio && <div className="text-sm text-muted-foreground">{candidate.bio}</div>}
+                  </div>
+                  <div className="mt-2 md:mt-0 md:ml-4 flex items-center gap-2">
+                    <span className="text-xl font-bold">{candidate.match || candidate.matchPercentage || candidate.match_percent || 0}%</span>
+                    <span className="text-xs text-muted-foreground">match</span>
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+        {results.length === 0 && suggested.length > 0 && (
+          <div className="mt-8 w-full max-w-2xl space-y-4">
+            <div className="font-semibold text-lg mb-2 text-white">No strong matches found. Here are some suggested profiles:</div>
+            {suggested.map((candidate, idx) => (
+              (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
+                <div key={`${candidate.name || 'candidate'}-${idx}`} className="p-4 rounded-lg border bg-background/80 flex flex-col md:flex-row md:items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-lg">{candidate.name || "Unnamed Candidate"}</div>
+                    {candidate.skills && candidate.skills.length > 0 && <div className="text-sm text-muted-foreground">Skills: {Array.isArray(candidate.skills) ? candidate.skills.join(", ") : candidate.skills}</div>}
+                    {candidate.bio && <div className="text-sm text-muted-foreground">{candidate.bio}</div>}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+        {!hasAnyProfiles && hasSearched && !loading && !error && (
+          <div className="mt-8 text-muted-foreground">No candidates found for your search. Try a different query or broaden your criteria.</div>
         )}
       </div>
     </div>
