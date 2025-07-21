@@ -191,6 +191,14 @@ class ApiClient {
     })
   }
 
+  // AI Profile Summary
+  async getProfileSummary(candidate: any, prompt: string) {
+    return this.request('/ai-profile-summary', {
+      method: 'POST',
+      body: JSON.stringify({ candidate, prompt }),
+    })
+  }
+
   // File Upload
   async uploadFile(file: File, folder: string) {
     const formData = new FormData()

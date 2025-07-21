@@ -19,19 +19,21 @@ export interface CardFlipProps {
     subtitle?: string;
     description?: string;
     features?: string[];
+    contactButtonText?: string;
 }
 
 export default function CardFlip({
     title = "Design Systems",
-    subtitle = "Explore the fundamentals",
-    description = "Dive deep into the world of modern UI/UX design.",
+    subtitle,
+    description,
     features = ["UI/UX", "Modern Design", "Tailwind CSS", "Kokonut UI"],
+    contactButtonText = "Contact",
 }: CardFlipProps) {
     const [isFlipped, setIsFlipped] = useState(false);
 
     return (
         <div
-            className="relative w-full max-w-[280px] h-[320px] group [perspective:2000px]"
+            className="relative w-full max-w-[280px] h-[340px] group [perspective:2000px]"
             onMouseEnter={() => setIsFlipped(true)}
             onMouseLeave={() => setIsFlipped(false)}
         >
@@ -87,9 +89,11 @@ export default function CardFlip({
                                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white leading-snug tracking-tighter transition-all duration-500 ease-out-expo group-hover:translate-y-[-4px]">
                                     {title}
                                 </h3>
-                                <p className="text-sm text-zinc-600 dark:text-zinc-200 line-clamp-2 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-4px] delay-[50ms]">
+                                {subtitle && (
+                                  <p className="text-sm text-zinc-600 dark:text-zinc-200 line-clamp-2 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-4px] delay-[50ms]">
                                     {subtitle}
-                                </p>
+                                  </p>
+                                )}
                             </div>
                             <div className="relative group/icon">
                                 <div
@@ -124,9 +128,11 @@ export default function CardFlip({
                             <h3 className="text-lg font-semibold text-zinc-900 dark:text-white leading-snug tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-2px]">
                                 {title}
                             </h3>
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-2px] line-clamp-2">
+                            {description && (
+                              <p className="text-sm text-zinc-600 dark:text-zinc-400 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-2px] line-clamp-2">
                                 {description}
-                            </p>
+                              </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -151,11 +157,11 @@ export default function CardFlip({
                         </div>
                     </div>
 
-                    <div className="pt-6 mt-6 border-t border-zinc-200 dark:border-zinc-800">
+                    <div className="pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
                         <div
                             className={cn(
                                 "group/start relative",
-                                "flex items-center justify-between",
+                                "flex items-center justify-between w-full max-w-[200px]",
                                 "p-3 -m-3 rounded-xl",
                                 "transition-all duration-300",
                                 "bg-gradient-to-r from-zinc-100 via-zinc-100 to-zinc-100",
@@ -166,7 +172,7 @@ export default function CardFlip({
                             )}
                         >
                             <span className="text-sm font-medium text-zinc-900 dark:text-white transition-colors duration-300 group-hover/start:text-orange-600 dark:group-hover/start:text-orange-400">
-                                Start today
+                                {contactButtonText}
                             </span>
                             <div className="relative group/icon">
                                 <div
