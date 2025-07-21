@@ -1,10 +1,9 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import compression from 'compression'
-import rateLimit from 'express-rate-limit'
 import { prisma } from './lib/prisma'
 import { execSync } from 'child_process'
 
@@ -133,36 +132,6 @@ async function initializeDatabase() {
 const app = express()
 const PORT = process.env.PORT || 5000
 
-// Rate limiting configuration
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-    retryAfter: '15 minutes'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-})
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 auth attempts per windowMs
-  message: {
-    error: 'Too many authentication attempts, please try again later.',
-    retryAfter: '15 minutes'
-  },
-})
-
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 3, // limit uploads
-  message: {
-    error: 'Too many uploads, please wait before uploading again.',
-    retryAfter: '1 minute'
-  },
-})
-
 // Middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
@@ -173,9 +142,6 @@ app.use(compression({
   level: 6, // Compression level (1-9, 6 is good balance)
   threshold: 1024, // Only compress responses larger than 1KB
 }))
-
-// Apply global rate limiting
-app.use(globalLimiter)
 
 // CORS configuration for production
 const corsOptions = {
@@ -278,24 +244,21 @@ app.get('/debug/env', (req, res) => {
   res.json(envCheck)
 })
 
-// API Routes with specific rate limiting
-app.use('/api/auth', authLimiter)
+// API Routes (simplified routing to avoid TypeScript conflicts)
 app.use('/api/auth', authRoutes)
 app.use('/api/students', studentRoutes)
 app.use('/api/recruiters', recruiterRoutes)
 app.use('/api/jobs', jobRoutes)
 app.use('/api/applications', applicationRoutes)
-app.use('/api/upload', uploadLimiter)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/health', healthRoutes)
-app.use('/api/profile-upload', uploadLimiter)
 app.use('/api/profile-upload', profileUploadRoutes)
 app.use('/api/ai-candidate-search', aiCandidateSearchRoutes)
 app.use('/api/ai-profile-summary', aiProfileSummaryRoutes)
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack)
   res.status(500).json({ error: 'Something went wrong!' })
 })
