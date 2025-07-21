@@ -183,6 +183,14 @@ class ApiClient {
     })
   }
 
+  // AI Candidate Search
+  async searchCandidates(prompt: string, mode: "normal" | "reasoning" = "normal") {
+    return this.request('/ai-candidate-search', {
+      method: 'POST',
+      body: JSON.stringify({ prompt, mode }),
+    })
+  }
+
   // File Upload
   async uploadFile(file: File, folder: string) {
     const formData = new FormData()

@@ -16,6 +16,7 @@ import uploadRoutes from './routes/upload'
 import notificationRoutes from './routes/notifications'
 import healthRoutes from './routes/health'
 import profileUploadRoutes from './routes/profile-upload'
+import aiCandidateSearchRoutes from './routes/ai-candidate-search';
 
 // Load environment variables
 dotenv.config()
@@ -232,6 +233,7 @@ app.use('/api/upload', uploadRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/health', healthRoutes)
 app.use('/api/profile-upload', profileUploadRoutes)
+app.use('/api/ai-candidate-search', aiCandidateSearchRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

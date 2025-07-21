@@ -74,8 +74,18 @@ const AnimatedPlaceholder = ({ showSearch }: { showSearch: boolean }) => (
   </AnimatePresence>
 )
 
-export function AiInput() {
-  const [value, setValue] = useState("")
+export function AiInput({
+  onSearch,
+  value: controlledValue,
+  onValueChange,
+}: {
+  onSearch?: (prompt: string, mode: "normal" | "reasoning") => void,
+  value?: string,
+  onValueChange?: (v: string) => void,
+}) {
+  const [uncontrolledValue, setUncontrolledValue] = useState("");
+  const value = controlledValue !== undefined ? controlledValue : uncontrolledValue;
+  const setValue = onValueChange || setUncontrolledValue;
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: MIN_HEIGHT,
     maxHeight: MAX_HEIGHT,
@@ -101,7 +111,10 @@ export function AiInput() {
   }
 
   const handleSubmit = () => {
-    setValue("")
+    if (value.trim() && onSearch) {
+      onSearch(value, showSearch ? "normal" : "reasoning")
+    }
+    // Do not clear value here; parent will control clearing if needed
     adjustHeight(true)
   }
 

@@ -25,6 +25,7 @@
   "author": "Team CampusCogni",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^1.10.0",
     "@prisma/client": "^6.11.1",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.0.10",
