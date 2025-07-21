@@ -272,7 +272,6 @@ export default function UserDashboard() {
               status="Updated"
               meta={`${stats.savedJobs} saved`}
               cta="Browse →"
-              hasPersistentHover={stats.savedJobs > 0}
             >
               <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {stats.savedJobs}
@@ -285,7 +284,6 @@ export default function UserDashboard() {
               icon={<Users className="h-4 w-4 text-green-500" />}
               status="Scheduled"
               meta={`${stats.interviewsScheduled} upcoming`}
-              tags={["Calendar", "Interview"]}
               cta="Schedule →"
             >
               <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -295,89 +293,49 @@ export default function UserDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Job Listings - Bento Style */}
-            <div className="lg:col-span-2">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-2">Available Jobs</h2>
-                <p className="text-muted-foreground">Browse and apply to jobs that match your skills</p>
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Latest Jobs
+                </h3>
+                <Button asChild variant="outline">
+                  <a href="/jobs">View All Jobs</a>
+                </Button>
               </div>
-              
-              <div className="grid gap-4">
-                {jobs.map((job) => (
-                  <BentoCard
-                    key={job.id}
-                    title={job.title}
-                    description={job.description}
-                    icon={<Building className="h-4 w-4 text-blue-500" />}
-                    status={job.applied ? "Applied" : job.ownJob ? "Your Job" : "Open"}
-                    meta={job.company}
-                    tags={[job.type, job.location]}
-                    cta={job.applied ? "Applied ✓" : job.ownJob ? "Manage →" : "Apply →"}
-                    hasPersistentHover={!job.applied && !job.ownJob}
-                    variant="large"
-                    className="w-full"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Building className="h-4 w-4" />
-                            {job.company}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
+
+                  {/* Job Listings - Enhanced Bento Cards */}
+                  <div className="space-y-4">
+                    {loading ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                        </div>
+                      ))
+                    ) : (
+                      jobs.slice(0, 5).map((job) => (
+                        <BentoCard
+                          key={job.id}
+                          variant="large"
+                          title={job.title}
+                          description={job.company}
+                          icon={<Building className="h-4 w-4 text-purple-500" />}
+                          status={job.applied ? 'Applied' : 'Not Applied'}
+                          meta={`${job.stipend ? `₹${job.stipend.toLocaleString()}` : 'Stipend not disclosed'} • ${job.location}`}
+                          cta="Apply Now →"
+                          onClick={() => {
+                            window.open(`/jobs/${job.id}`, '_blank');
+                          }}
+                        >
+                          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <MapPin className="h-3 w-3" />
                             {job.location}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {job.postedDate}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={job.type === 'Internship' ? 'secondary' : 'default'}>
-                            {job.type}
-                          </Badge>
-                          <Badge variant="outline">{job.stipend}</Badge>
-                        </div>
-                      </div>
-                      
-                      {job.requirements && (
-                        <div className="flex flex-wrap gap-2">
-                          {job.requirements.split(',').slice(0, 3).map((req, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {req.trim()}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          onClick={() => handleApplyToJob(job.id)}
-                          disabled={job.applied || job.ownJob}
-                          className="flex-1"
-                        >
-                          {job.ownJob
-                            ? "Your Job"
-                            : job.applied
-                              ? "Applied"
-                              : "Apply Now"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleSaveJob(job.id)}
-                          className="px-3"
-                        >
-                          <Heart className={`h-4 w-4 ${job.saved ? 'fill-current text-red-500' : ''}`} />
-                        </Button>
-                      </div>
-                    </div>
-                  </BentoCard>
-                ))}
-              </div>
-            </div>
-
-            {/* Sidebar */}
+                        </BentoCard>
+                      ))
+                    )}
+                  </div>
+            </div>            {/* Sidebar */}
             <div className="space-y-4">
               {/* Quick Actions - Bento Style */}
               <BentoCard
@@ -385,7 +343,6 @@ export default function UserDashboard() {
                 description="Navigate to key features"
                 icon={<Star className="h-4 w-4 text-yellow-500" />}
                 status="Ready"
-                tags={["Navigation", "Tools"]}
               >
                 <div className="space-y-2">
                   <Button asChild variant="outline" className="w-full justify-start text-sm">

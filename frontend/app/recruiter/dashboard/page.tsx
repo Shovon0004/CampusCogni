@@ -263,7 +263,6 @@ export default function RecruiterDashboard() {
               icon={<Users className="h-4 w-4 text-purple-500" />}
               status="Updated"
               meta={`${stats.totalApplications} total`}
-              tags={["Candidates"]}
               cta="Review →"
               hasPersistentHover={stats.pendingApplications > 0}
             >
@@ -278,7 +277,6 @@ export default function RecruiterDashboard() {
               icon={<Clock className="h-4 w-4 text-yellow-500" />}
               status="Urgent"
               meta={`${stats.pendingApplications} waiting`}
-              tags={["Review", "Priority"]}
               cta="Review Now →"
               hasPersistentHover={stats.pendingApplications > 0}
             >
@@ -293,7 +291,6 @@ export default function RecruiterDashboard() {
               icon={<CheckCircle className="h-4 w-4 text-green-500" />}
               status="Success"
               meta={`${stats.acceptedApplications} hired`}
-              tags={["Success", "Hired"]}
               cta="View →"
             >
               <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
