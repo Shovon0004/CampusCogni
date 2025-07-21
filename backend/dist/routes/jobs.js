@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const prisma_1 = require("../lib/prisma");
+const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 // Get all jobs
 router.get('/', async (req, res) => {
@@ -68,25 +69,46 @@ router.get('/', async (req, res) => {
     }
 });
 // Create job
-router.post('/', async (req, res) => {
+router.post('/', auth_1.authenticateToken, (0, auth_1.requireRole)(['RECRUITER', 'BOTH']), async (req, res, next) => {
     try {
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ error: 'Access token required' });
+        const { user } = req;
+        if (!user || !user.id) {
+            console.error('No user or user.id in request:', user);
+            res.status(401).json({ error: 'Invalid or missing user authentication' });
+            return;
         }
-        // Get recruiter ID from token (simplified)
-        const recruiter = await prisma_1.prisma.recruiter.findFirst({
-            where: { user: { email: req.body.userEmail } },
+        const userId = user.id;
+        // Find recruiter by userId
+        const recruiter = await prisma_1.prisma.recruiter.findUnique({
+            where: { userId },
         });
         if (!recruiter) {
-            return res.status(404).json({ error: 'Recruiter not found' });
+            res.status(404).json({ error: 'Recruiter not found' });
+            return;
+        }
+        const jobData = req.body;
+        // Map type and workMode to Prisma enums
+        const typeMap = {
+            "part-time": "PART_TIME",
+            "full-time": "FULL_TIME",
+            "internship": "INTERNSHIP"
+        };
+        if (jobData.type && typeMap[jobData.type]) {
+            jobData.type = typeMap[jobData.type];
+        }
+        const workModeMap = {
+            "on-site": "ON_SITE",
+            "remote": "REMOTE",
+            "hybrid": "HYBRID"
+        };
+        if (jobData.workMode && workModeMap[jobData.workMode]) {
+            jobData.workMode = workModeMap[jobData.workMode];
         }
         const job = await prisma_1.prisma.job.create({
             data: {
-                ...req.body,
+                ...jobData,
                 recruiterId: recruiter.id,
-                deadline: new Date(req.body.deadline),
+                deadline: new Date(jobData.deadline),
             },
             include: {
                 recruiter: {
@@ -146,19 +168,25 @@ router.post('/:id/apply', async (req, res) => {
         if (!token) {
             return res.status(401).json({ error: 'Access token required' });
         }
-        // Get student ID (simplified)
+        // Get student and their userId
         const student = await prisma_1.prisma.student.findFirst({
             where: { user: { email: req.body.userEmail } },
+            include: { user: true }
         });
         if (!student) {
             return res.status(404).json({ error: 'Student not found' });
         }
-        // Check if job exists
+        // Get job and its recruiter
         const job = await prisma_1.prisma.job.findUnique({
             where: { id: req.params.id },
+            include: { recruiter: true }
         });
         if (!job) {
             return res.status(404).json({ error: 'Job not found' });
+        }
+        // Prevent user from applying to their own job
+        if (job.recruiter && student.user && job.recruiter.userId === student.user.id) {
+            return res.status(400).json({ error: "You cannot apply to a job you posted." });
         }
         // Check if already applied
         const existingApplication = await prisma_1.prisma.application.findUnique({
@@ -178,6 +206,19 @@ router.post('/:id/apply', async (req, res) => {
                 studentId: student.id,
                 jobId: req.params.id,
                 coverLetter: req.body.coverLetter || '',
+            },
+            include: {
+                student: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+                job: {
+                    select: {
+                        title: true,
+                    },
+                },
             },
         });
         res.status(201).json(application);

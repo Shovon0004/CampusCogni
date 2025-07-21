@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import helmet from 'helmet'
 import morgan from 'morgan' 
 import { prisma } from './lib/prisma'
+import { execSync } from 'child_process'
 
 // Import routes
 import authRoutes from './routes/auth'
@@ -30,6 +31,57 @@ if (missingEnvVars.length > 0) {
 console.log('✅ Environment variables loaded successfully')
 console.log('📊 Database URL:', process.env.DATABASE_URL?.includes('localhost') ? 'LOCAL DATABASE' : 'REMOTE DATABASE')
 console.log('🔐 JWT Secret:', process.env.JWT_SECRET ? 'SET' : 'NOT SET')
+
+// Initialize database on startup
+async function initializeDatabase() {
+  try {
+    console.log('🔄 Initializing database...')
+    
+    // Run migrations in production
+    if (process.env.NODE_ENV === 'production') {
+      console.log('📋 Running database migrations...')
+      try {
+        execSync('npx prisma migrate deploy', { 
+          stdio: 'inherit',
+          cwd: process.cwd(),
+          env: { ...process.env }
+        })
+        console.log('✅ Migrations completed successfully')
+      } catch (migrationError: any) {
+        console.error('⚠️ Migration failed, attempting database push...')
+        console.error('Migration error:', migrationError?.message || migrationError)
+        
+        // Fallback to db push if migrations fail
+        execSync('npx prisma db push --force-reset', { 
+          stdio: 'inherit',
+          cwd: process.cwd(),
+          env: { ...process.env }
+        })
+        console.log('✅ Database push completed successfully')
+      }
+    }
+    
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`
+    console.log('✅ Database connection verified')
+    
+    // Check tables
+    const tableCount: any = await prisma.$queryRaw`
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `
+    console.log(`📊 Database has ${tableCount[0].count} tables`)
+    
+    if (tableCount[0].count === 0) {
+      throw new Error('No tables found in database - migration may have failed')
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Database initialization failed:', error?.message || error)
+    throw error
+  }
+}
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -147,9 +199,24 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' })
 })
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`)
-})
+// Start server with database initialization
+async function startServer() {
+  try {
+    // Initialize database first
+    await initializeDatabase()
+    
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`)
+      console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`)
+    })
+  } catch (error: any) {
+    console.error('❌ Failed to start server:', error?.message || error)
+    process.exit(1)
+  }
+}
+
+// Start the application
+startServer()
 
 export default app

@@ -56,13 +56,13 @@ router.put('/:userId', async (req, res) => {
         // Update projects if provided
         if (projects) {
             await prisma_1.prisma.project.deleteMany({
-                where: { studentId: req.params.id },
+                where: { studentId: student.id },
             });
             if (projects.length > 0) {
                 await prisma_1.prisma.project.createMany({
                     data: projects.map((project) => ({
                         ...project,
-                        studentId: req.params.id,
+                        studentId: student.id,
                     })),
                 });
             }
@@ -70,13 +70,13 @@ router.put('/:userId', async (req, res) => {
         // Update experiences if provided
         if (experiences) {
             await prisma_1.prisma.experience.deleteMany({
-                where: { studentId: req.params.id },
+                where: { studentId: student.id },
             });
             if (experiences.length > 0) {
                 await prisma_1.prisma.experience.createMany({
                     data: experiences.map((exp) => ({
                         ...exp,
-                        studentId: req.params.id,
+                        studentId: student.id,
                     })),
                 });
             }
@@ -84,13 +84,13 @@ router.put('/:userId', async (req, res) => {
         // Update certifications if provided
         if (certifications) {
             await prisma_1.prisma.certification.deleteMany({
-                where: { studentId: req.params.id },
+                where: { studentId: student.id },
             });
             if (certifications.length > 0) {
                 await prisma_1.prisma.certification.createMany({
                     data: certifications.map((cert) => ({
                         ...cert,
-                        studentId: req.params.id,
+                        studentId: student.id,
                     })),
                 });
             }
