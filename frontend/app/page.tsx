@@ -8,6 +8,7 @@ import { ThreeHero } from "@/components/three-hero"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
 import { Users, Briefcase, TrendingUp, Shield, ArrowRight, Sparkles, Star } from "lucide-react"
+import Marquee from "react-fast-marquee"
 
 // Extract FloatingPaths component from KokonutUI
 function FloatingPaths({ position }: { position: number }) {
@@ -91,7 +92,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, x: -50 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="space-y-8"
+                className="space-y-8 ml-0 md:ml-8 lg:ml-16 xl:ml-24"
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -179,86 +180,28 @@ export default function HomePage() {
               <FloatingPaths position={1} />
               <FloatingPaths position={-1} />
             </div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mb-16 relative z-10"
-            >
+            <div className="text-center mb-16 relative z-10">
               <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">Why Choose CampusCogni?</h2>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
                 Built specifically for campus recruitment with features that matter most.
               </p>
-            </motion.div>
-
-            {/* Auto-sliding feature boxes */}
-            <div className="relative overflow-hidden z-10">
-              <motion.div
-                className="flex gap-8"
-                animate={{
-                  x: [0, -100 * features.length],
-                }}
-                transition={{
-                  duration: 20,
-                  repeat: Number.POSITIVE_INFINITY,
-                  ease: "linear",
-                }}
-                style={{ width: `${200 * features.length}%` }}
-              >
-                {/* Duplicate features for seamless loop */}
-                {[...features, ...features].map((feature, index) => (
-                  <motion.div
-                    key={`${feature.title}-${index}`}
-                    className="flex-shrink-0 w-80"
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Card className="h-full hover:shadow-2xl transition-all duration-500 border-0 bg-background/60 backdrop-blur-xl shadow-lg">
-                      <CardContent className="p-8 text-center">
-                        <motion.div
-                          className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center"
-                          whileHover={{ rotate: 5, scale: 1.1 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <feature.icon className="w-8 h-8 text-primary" />
-                        </motion.div>
-                        <h3 className="text-xl font-semibold mb-4">{feature.title}</h3>
-                        <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </motion.div>
             </div>
-
-            {/* Static grid for mobile/fallback */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-16 md:hidden z-10 relative">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -8 }}
-                  className="group"
-                >
-                  <Card className="h-full hover:shadow-2xl transition-all duration-500 border-0 bg-background/60 backdrop-blur-xl shadow-lg">
-                    <CardContent className="p-8 text-center">
-                      <motion.div
-                        className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
-                        whileHover={{ rotate: 5 }}
-                      >
-                        <feature.icon className="w-8 h-8 text-primary" />
-                      </motion.div>
-                      <h3 className="text-xl font-semibold mb-4">{feature.title}</h3>
-                      <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+            {/* Marquee Features Animation */}
+            <div className="relative [mask-image:linear-gradient(to_right,transparent_0%,white_10%,white_90%,transparent_100%)] overflow-hidden z-10">
+              <Marquee direction="right" pauseOnHover speed={30}>
+                {features.map((feature, idx) => (
+                  <div
+                    key={feature.title + idx}
+                    className="p-6 rounded-2xl min-h-[230px] h-full max-w-md md:max-w-lg mx-4 bg-background/80 dark:bg-card/70 backdrop-blur-sm border border-border/50 shadow-lg transition-colors group hover:border-accent flex flex-col items-center justify-center"
+                  >
+                    <div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                      <feature.icon className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-4 text-foreground/90">{feature.title}</h3>
+                    <p className="text-sm font-normal text-muted-foreground max-w-sm text-center">{feature.description}</p>
+                  </div>
+                ))}
+              </Marquee>
             </div>
           </section>
 
