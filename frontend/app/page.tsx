@@ -80,6 +80,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen overflow-x-hidden relative">
+      {/* Background Paths Animation restored to original position */}
+      <div className="absolute inset-0 pointer-events-none">
+        <FloatingPaths position={1} />
+        <FloatingPaths position={-1} />
+      </div>
       <div className="relative z-10 max-w-full">
         <FloatingNavbar />
 
@@ -173,13 +178,8 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Features Section with Background Paths Animation */}
+          {/* Features Section */}
           <section className="container mx-auto px-4 py-20 relative">
-            {/* Background Paths Animation moved here */}
-            <div className="absolute inset-0 pointer-events-none">
-              <FloatingPaths position={1} />
-              <FloatingPaths position={-1} />
-            </div>
             <div className="text-center mb-16 relative z-10">
               <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">Why Choose CampusCogni?</h2>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
