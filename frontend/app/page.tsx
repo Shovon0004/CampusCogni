@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ThreeHero } from "@/components/three-hero"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
+import { FlipLink } from "@/components/flip-link"
 import { Users, Briefcase, TrendingUp, Shield, ArrowRight, Sparkles, Star } from "lucide-react"
 import Marquee from "react-fast-marquee"
 
@@ -110,20 +111,28 @@ export default function HomePage() {
                   <Star className="w-3 h-3 fill-current" />
                 </motion.div>
 
-                <motion.h1
-                  className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.9]"
+                <motion.div
+                  className="flex flex-col space-y-4 py-4"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3 }}
+                  style={{ overflow: 'visible' }}
                 >
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70">
-                    Campus Recruitment
-                  </span>
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary/80 to-primary/60">
-                    Reimagined
-                  </span>
-                </motion.h1>
+                  <div className="overflow-visible">
+                    <FlipLink 
+                      className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 dark:text-slate-100"
+                    >
+                      Campus Recruit
+                    </FlipLink>
+                  </div>
+                  <div className="overflow-visible">
+                    <FlipLink 
+                      className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-primary"
+                    >
+                      Reimagined
+                    </FlipLink>
+                  </div>
+                </motion.div>
 
                 <motion.p
                   className="text-xl md:text-2xl text-muted-foreground max-w-2xl leading-relaxed"
