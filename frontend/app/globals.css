@@ -102,3 +102,25 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Animated cards styles */
+.animated-cards {
+  position: relative;
+}
+
+.animated-cards::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: conic-gradient(from 0deg at var(--x, 50%) var(--y, 50%), transparent, rgba(255, 255, 255, 0.1), transparent);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.animated-cards:hover::before {
+  opacity: 1;
+}

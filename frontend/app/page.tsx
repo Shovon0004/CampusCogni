@@ -8,6 +8,7 @@ import { ThreeHero } from "@/components/three-hero"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { Footer } from "@/components/footer"
 import { FlipLink } from "@/components/flip-link"
+import { CampusCogniFeatureDemo } from "@/components/ui/campus-cogni-feature-demo"
 import { Users, Briefcase, TrendingUp, Shield, ArrowRight, Sparkles, Star } from "lucide-react"
 import Marquee from "react-fast-marquee"
 
@@ -56,29 +57,6 @@ function FloatingPaths({ position }: { position: number }) {
 }
 
 export default function HomePage() {
-  const features = [
-    {
-      icon: Users,
-      title: "Smart Matching",
-      description: "AI-powered matching between students and recruiters based on skills and requirements",
-    },
-    {
-      icon: Briefcase,
-      title: "Campus Focused",
-      description: "Designed specifically for campus recruitment drives and college placements",
-    },
-    {
-      icon: TrendingUp,
-      title: "Real-time Analytics",
-      description: "Track application progress and recruitment metrics in real-time",
-    },
-    {
-      icon: Shield,
-      title: "Secure Platform",
-      description: "Enterprise-grade security for all your recruitment data and communications",
-    },
-  ]
-
   return (
     <div className="min-h-screen overflow-x-hidden relative">
       {/* Background Paths Animation restored to original position */}
@@ -188,29 +166,12 @@ export default function HomePage() {
           </section>
 
           {/* Features Section */}
-          <section className="container mx-auto px-4 py-20 relative">
-            <div className="text-center mb-16 relative z-10">
-              <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">Why Choose CampusCogni?</h2>
-              <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                Built specifically for campus recruitment with features that matter most.
-              </p>
-            </div>
-            {/* Marquee Features Animation */}
-            <div className="relative [mask-image:linear-gradient(to_right,transparent_0%,white_10%,white_90%,transparent_100%)] overflow-hidden z-10">
-              <Marquee direction="right" pauseOnHover speed={30}>
-                {features.map((feature, idx) => (
-                  <div
-                    key={feature.title + idx}
-                    className="p-6 rounded-2xl min-h-[230px] h-full max-w-md md:max-w-lg mx-4 bg-background/80 dark:bg-card/70 backdrop-blur-sm border border-border/50 shadow-lg transition-colors group hover:border-accent flex flex-col items-center justify-center"
-                  >
-                    <div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                      <feature.icon className="w-8 h-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-4 text-foreground/90">{feature.title}</h3>
-                    <p className="text-sm font-normal text-muted-foreground max-w-sm text-center">{feature.description}</p>
-                  </div>
-                ))}
-              </Marquee>
+          <section className="py-24 relative">
+            <div className="container mx-auto px-4">
+              <h2 className="text-4xl font-bold text-center mb-16">
+                <span className="gradient-text">Powerful Features</span>
+              </h2>
+              <CampusCogniFeatureDemo />
             </div>
           </section>
 
