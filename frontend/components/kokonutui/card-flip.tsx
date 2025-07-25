@@ -1,16 +1,6 @@
 "use client";
 
-/**
- * @author: @dorian_baffier
- * @description: Card Flip
- * @version: 1.0.0
- * @date: 2025-06-26
- * @license: MIT
- * @website: https://kokonutui.com
- * @github: https://github.com/kokonut-labs/kokonutui
- */
-
-import { cn } from "/lib/utils";
+import { cn } from "@/lib/utils";
 import { ArrowRight, Repeat2 } from "lucide-react";
 import { useState } from "react";
 
@@ -90,9 +80,9 @@ export default function CardFlip({
                                     {title}
                                 </h3>
                                 {subtitle && (
-                                  <p className="text-sm text-zinc-600 dark:text-zinc-200 line-clamp-2 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-4px] delay-[50ms]">
+                                <p className="text-sm text-zinc-600 dark:text-zinc-200 line-clamp-2 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-4px] delay-[50ms]">
                                     {subtitle}
-                                  </p>
+                                </p>
                                 )}
                             </div>
                             <div className="relative group/icon">
@@ -129,9 +119,9 @@ export default function CardFlip({
                                 {title}
                             </h3>
                             {description && (
-                              <p className="text-sm text-zinc-600 dark:text-zinc-400 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-2px] line-clamp-2">
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400 tracking-tight transition-all duration-500 ease-out-expo group-hover:translate-y-[-2px] line-clamp-2">
                                 {description}
-                              </p>
+                            </p>
                             )}
                         </div>
 

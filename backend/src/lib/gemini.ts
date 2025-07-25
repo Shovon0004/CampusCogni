@@ -122,6 +122,31 @@ export async function getCandidateMatches(
   candidates: any[],
   mode: "normal" | "reasoning" = "normal"
 ) {
+  // --- Parse topN from prompt, but let LLM decide if not found ---
+  let topN: number | undefined = undefined;
+  let allRequested = false;
+  let justOne = false;
+  let atLeastN = false;
+  let minN = 0;
+  // Try to detect intent for number of candidates
+  const nMatch = prompt.match(/(?:top|first|only|just|need|want|show|find|give|list|suggest|recommend)?\s*(\d{1,3})\s*(?:candidates?|profiles?|people|developers|engineers)?/i);
+  if (nMatch && nMatch[1]) {
+    topN = Math.max(1, Math.min(20, parseInt(nMatch[1], 10)));
+  }
+  if (/all|every|everyone|all candidates|all profiles/i.test(prompt)) {
+    allRequested = true;
+    topN = 20;
+  }
+  if (/just one|the best|top candidate|top profile|single best|best match|most suitable one/i.test(prompt)) {
+    justOne = true;
+    topN = 1;
+  }
+  const atLeastMatch = prompt.match(/at least (\d{1,3})|minimum (\d{1,3})/i);
+  if (atLeastMatch && (atLeastMatch[1] || atLeastMatch[2])) {
+    atLeastN = true;
+    minN = Math.max(1, Math.min(20, parseInt(atLeastMatch[1] || atLeastMatch[2], 10)));
+    topN = minN;
+  }
   const expandedKeywords = await getExpandedSkills(prompt);
   console.log("AI expanded keywords for search:", expandedKeywords);
   // Filter candidates by skills
@@ -155,36 +180,7 @@ export async function getCandidateMatches(
   let matches: any[] = [];
   if (filteredCandidates.length > 0) {
     const requiredSkills = expandedKeywords;
-    const strictJsonInstruction = `Respond ONLY with a valid JSON array of objects, no explanation, no markdown, no extra text. Do NOT use markdown or triple backticks, just output raw JSON. Example:
-[
-  { "name": "John Doe", "match": 98, "skills": ["Java", "Spring", "Maven", "RESTful API", "React"], "bio": "Senior Java Full Stack Developer with 7 years experience.", "reason": "Has all required Java backend and frontend skills, 7+ years experience, recent relevant job titles." },
-  { "name": "Jane Smith", "match": 60, "skills": ["Java", "React"], "bio": "Frontend developer with some Java experience.", "reason": "Missing Spring, Maven, RESTful API. Only partial match." },
-  { "name": "Alex Lee", "match": 20, "skills": ["React", "Node.js", "MongoDB"], "bio": "MERN stack developer.", "reason": "No Java, Spring, or Maven experience. Not a Java full stack developer." },
-  { "name": "Priya Patel", "match": 0, "skills": ["Python", "Django"], "bio": "Python backend developer.", "reason": "No relevant skills for Java full stack role." }
-]`;
-
-    const systemPrompt = `
-You are an expert technical recruiter AI. Given a job description or requirements, analyze the following candidate profiles and return a JSON array of candidates with a match percentage (100% = perfect fit, 0% = not a fit).
-
-REQUIRED SKILLS for this job: ${requiredSkills.join(', ')}
-
-Scoring rules:
-- Only give a high score (90%+) if the candidate has ALL the required core skills/technologies for the job: ${requiredSkills.join(', ')}.
-- Penalize missing ANY required skill heavily. If a candidate is missing a required skill (e.g., Spring, Maven, RESTful API), their score should be low (below 50%).
-- If a candidate has only frontend or only backend skills, but not both, score them below 50%.
-- If a candidate is a MERN stack developer (React, Node.js, MongoDB) but the job is for Java full stack, score them below 30%.
-- If a candidate has no relevant experience, score them 0%.
-- Consider years of experience, relevant job titles, and recency of experience. Prefer candidates with direct, recent experience in the requested stack/role.
-- For each candidate, include a short 'reason' field explaining the score, mentioning which required skills are missing if any.
-- Do NOT give high scores for candidates who only have partial overlap (e.g., just React or just Java).
-- If a candidate has all required skills but only 1 year of experience, score them 70-80%.
-- If a candidate has all required skills and 5+ years of experience, score them 95-100%.
-- If a candidate has most but not all required skills, score them 60-80% depending on how many are missing.
-- If a candidate has only unrelated skills, score them 0%.
-
-${strictJsonInstruction}
-`;
-
+    // --- New: Conversational, robust, human-like system prompt ---
     const candidateData = filteredCandidates.map((c: any) => ({
       name: `${c.firstName} ${c.lastName}`,
       skills: c.skills,
@@ -198,6 +194,52 @@ ${strictJsonInstruction}
       },
       bio: c.bio,
     }));
+    const strictJsonInstruction = `Respond ONLY with a valid JSON array of objects, no explanation, no markdown, no extra text. Do NOT use markdown or triple backticks, just output raw JSON.
+
+- If the user requested a specific number of candidates (e.g., 5, 10, 1), return exactly that many, sorted by match percentage descending.
+- If the user said 'all', 'every', or similar, return up to 20, but only the best matches.
+- If the user said 'just one', 'the best', 'top', etc., return only the single best match.
+- If the user said 'at least N', 'minimum N', return at least N if possible, but not more than 20.
+- If the user is vague, return 5-10 best matches.
+- Never return more than 20 candidates.
+- Always prioritize quality over quantity.
+- Always sort by match percentage descending.
+- Example:
+[
+  { "name": "John Doe", "match": 98, "skills": ["Java", "Spring", "Maven", "RESTful API", "React"], "bio": "Senior Java Full Stack Developer with 7 years experience.", "reason": "Has all required Java backend and frontend skills, 7+ years experience, recent relevant job titles." },
+  { "name": "Jane Smith", "match": 60, "skills": ["Java", "React"], "bio": "Frontend developer with some Java experience.", "reason": "Missing Spring, Maven, RESTful API. Only partial match." }
+]`;
+
+    const systemPrompt = `
+You are a helpful, expert technical recruiter AI. Given a job description or requirements, analyze the following candidate profiles and return a JSON array of the most suitable candidates, sorted by match percentage (100% = perfect fit, 0% = not a fit).
+
+- Carefully read and deeply understand the job requirements. Infer implied skills, synonyms, and related technologies (e.g., "React" implies "JavaScript", "Redux", etc.).
+- Consider not just skills, but also years of experience, recency of experience, relevant job titles, project relevance, education, and overall fit for the role.
+- Penalize candidates with outdated experience, irrelevant education, or skills that are not recent.
+- Avoid bias toward candidates with long skill lists if those skills are not relevant or recent.
+- If a candidate's experience is missing or unclear, infer where possible, but penalize uncertainty.
+- If a candidate's profile mentions soft skills, leadership, or communication, consider these as a plus for senior roles.
+- For each candidate, provide a concise, human-like 'reason' field explaining both strengths and weaknesses for this job, as if you are a senior recruiter presenting a shortlist to a hiring manager.
+- If there are ties, prefer candidates with more years of experience, more recent experience, or more relevant projects.
+- If there are not enough strong matches, return fewer candidates.
+- All previous instructions about number of candidates, sorting, and JSON output strictness apply.
+- Scoring rules:
+  - Only give a high score (90%+) if the candidate has ALL the required core skills/technologies for the job: ${requiredSkills.join(', ')}.
+  - Penalize missing ANY required skill heavily. If a candidate is missing a required skill (e.g., Spring, Maven, RESTful API), their score should be low (below 50%).
+  - If a candidate has only frontend or only backend skills, but not both, score them below 50%.
+  - If a candidate is a MERN stack developer (React, Node.js, MongoDB) but the job is for Java full stack, score them below 30%.
+  - If a candidate has no relevant experience, score them 0%.
+  - For each candidate, include a short 'reason' field explaining the score, mentioning which required skills are missing if any.
+  - Do NOT give high scores for candidates who only have partial overlap (e.g., just React or just Java).
+  - If a candidate has all required skills but only 1 year of experience, score them 70-80%.
+  - If a candidate has all required skills and 5+ years of experience, score them 95-100%.
+  - If a candidate has most but not all required skills, score them 60-80% depending on how many are missing.
+  - If a candidate has only unrelated skills, score them 0%.
+
+${strictJsonInstruction}
+
+Job/Requirement: ${prompt}
+Candidates: ${JSON.stringify(candidateData)}`;
 
     const fullPrompt = `${systemPrompt}\nJob/Requirement: ${prompt}\nCandidates: ${JSON.stringify(candidateData)}`;
 
