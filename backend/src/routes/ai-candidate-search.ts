@@ -17,9 +17,8 @@ router.post("/", async (req: Request, res: Response) => {
       },
     });
 
-    const { matches, suggested } = await getCandidateMatches(prompt, candidates, mode);
-
-    res.json({ matches, suggested });
+    const { matches, suggested, reasoningSteps } = await getCandidateMatches(prompt, candidates, mode);
+    res.json({ matches, suggested, reasoningSteps });
   } catch (error) {
     console.error("AI candidate search error:", error);
     res.status(500).json({ error: "Internal server error" });

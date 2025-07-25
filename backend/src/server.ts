@@ -151,6 +151,7 @@ const corsOptions = {
       'http://localhost:3001', 
       'https://campuscogni.vercel.app',
       'https://campus-cogni.vercel.app',
+      'https://campus-cogni-bay.vercel.app',
       'https://campuscogni-*.vercel.app', // Allow preview deployments
     ];
     
