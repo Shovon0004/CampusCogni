@@ -1,8 +1,33 @@
 // This is a pure Express router module. Do not export a function or use explicit type annotations for handlers.
-import express from "express";
-import axios from "axios";
+import { Router, Request, Response } from 'express';
+import axios from 'axios';
 
-const router = express.Router();
+// Type definitions for API responses
+interface GroqChoice {
+  message: {
+    content: string;
+  };
+}
+
+interface GroqResponse {
+  choices: GroqChoice[];
+}
+
+interface GeminiPart {
+  text: string;
+}
+
+interface GeminiCandidate {
+  content: {
+    parts: GeminiPart[];
+  };
+}
+
+interface GeminiResponse {
+  candidates: GeminiCandidate[];
+}
+
+const router: Router = Router();
 
 const SEARCH_CANDIDATE_API_KEY_GROQ = process.env.SEARCH_CANDIDATE_API_KEY_GROQ;
 const GEMINI_API_KEY = process.env.SEARCH_CANDIDATE_API_KEY;
@@ -10,7 +35,7 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
 // DO NOT add any type annotations to req or res below
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const { candidate, prompt } = req.body;
     if (!candidate) return res.status(400).json({ error: "Candidate is required" });
@@ -39,7 +64,7 @@ router.post("/", async (req, res) => {
             }
           }
         );
-        let text = response.data.choices?.[0]?.message?.content || "";
+        let text = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
         text = text.trim();
         if (text.startsWith('```json')) text = text.slice(7);
         if (text.startsWith('```')) text = text.slice(3);
@@ -74,8 +99,8 @@ router.post("/", async (req, res) => {
           }
         );
         let text =
-          response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
-          response.data.choices?.[0]?.message?.content ||
+          (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text ||
+          (response.data as GroqResponse).choices?.[0]?.message?.content ||
           "";
         text = text.trim();
         if (text.startsWith('```json')) text = text.slice(7);

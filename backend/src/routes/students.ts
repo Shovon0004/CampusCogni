@@ -1,7 +1,7 @@
-import express from 'express'
+import express, { Router } from 'express'
 import { prisma } from '../lib/prisma'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // Get student profile by user ID
 router.get('/:userId', async (req: any, res: any) => {

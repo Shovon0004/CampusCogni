@@ -1,9 +1,9 @@
-import express from 'express'
+import express, { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // Register
 router.post('/register', async (req: any, res: any) => {

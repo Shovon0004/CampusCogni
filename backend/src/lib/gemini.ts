@@ -1,5 +1,30 @@
 import axios from "axios";
 
+// Type definitions for API responses
+interface GroqChoice {
+  message: {
+    content: string;
+  };
+}
+
+interface GroqResponse {
+  choices: GroqChoice[];
+}
+
+interface GeminiPart {
+  text: string;
+}
+
+interface GeminiCandidate {
+  content: {
+    parts: GeminiPart[];
+  };
+}
+
+interface GeminiResponse {
+  candidates: GeminiCandidate[];
+}
+
 const GEMINI_API_KEY = process.env.SEARCH_CANDIDATE_API_KEY;
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const CANDIDATE_INFO_API_KEY = process.env.CANDIDATE_INFO_API_KEY;
@@ -35,7 +60,7 @@ async function getExpandedSkills(prompt: string): Promise<string[]> {
           }
         }
       );
-      let text = response.data.choices?.[0]?.message?.content || "";
+      let text = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
       text = text.trim();
       if (text.startsWith('```json')) text = text.slice(7);
       if (text.startsWith('```')) text = text.slice(3);
@@ -75,8 +100,8 @@ async function getExpandedSkills(prompt: string): Promise<string[]> {
     }
   );
   let text =
-    response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
-    response.data.choices?.[0]?.message?.content ||
+    (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text ||
+    (response.data as GroqResponse).choices?.[0]?.message?.content ||
     "";
   text = text.trim();
   if (text.startsWith('```json')) text = text.slice(7);
@@ -197,7 +222,7 @@ ${strictJsonInstruction}
             }
           }
         );
-        let text = response.data.choices?.[0]?.message?.content || "";
+        let text = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
         text = text.trim();
         if (text.startsWith('```json')) text = text.slice(7);
         if (text.startsWith('```')) text = text.slice(3);
@@ -238,8 +263,8 @@ ${strictJsonInstruction}
           }
         );
         const text =
-          response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
-          response.data.choices?.[0]?.message?.content ||
+          (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text ||
+          (response.data as GroqResponse).choices?.[0]?.message?.content ||
           "";
         let cleanText = text.trim();
         if (cleanText.startsWith('```json')) {

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { RandomThemeToggle } from "@/components/ui/random-theme-toggle"
 import { Menu, Briefcase, User, LogOut, Settings, Bell } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -114,7 +114,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
             </span>
           </Link>
           <div className="flex items-center space-x-3">
-            <ThemeToggle />
+            <RandomThemeToggle />
             <Button asChild variant="ghost" className="hover:bg-muted/50">
               <Link href="/auth">Sign In</Link>
             </Button>
@@ -151,7 +151,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
         </div>
 
         <div className="flex items-center space-x-3">
-          <ThemeToggle />
+          <RandomThemeToggle />
           <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
             <Bell className="h-4 w-4" />
             <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-primary">

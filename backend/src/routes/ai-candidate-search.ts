@@ -1,10 +1,10 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { getCandidateMatches, getExpandedSkills } from "../lib/gemini";
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
-router.post("/", async (req: any, res: any) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const { prompt, mode = "normal" } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });

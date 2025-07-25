@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import { uploadToImageKit, getImageKitAuthParams, isImageKitAvailable } from '../lib/imagekit';
 import { authenticateToken } from '../middleware/auth';
 
-const router = Router();
+const router: Router = Router();
 
 // Configure multer for memory storage
 const upload = multer({ 

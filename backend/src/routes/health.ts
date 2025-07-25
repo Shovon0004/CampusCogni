@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 
-const router = Router();
+const router: Router = Router();
 
 // Health check endpoint for keeping server alive
 router.get('/ping', (req: Request, res: Response) => {
