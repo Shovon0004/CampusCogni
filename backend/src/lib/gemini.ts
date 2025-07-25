@@ -178,6 +178,7 @@ export async function getCandidateMatches(
   }
 
   let matches: any[] = [];
+  let reasoningSteps: string[] = [];
   if (filteredCandidates.length > 0) {
     const requiredSkills = expandedKeywords;
     // --- New: Conversational, robust, human-like system prompt ---
@@ -330,8 +331,121 @@ Candidates: ${JSON.stringify(candidateData)}`;
       }
     }
   }
+  // Reasoning mode: ask LLM for reasoningSteps and matches
+  if (mode === "reasoning" && filteredCandidates.length > 0) {
+    const requiredSkills = expandedKeywords;
+    const candidateData = filteredCandidates.map((c: any) => ({
+      name: `${c.firstName} ${c.lastName}`,
+      skills: c.skills,
+      experiences: c.experiences,
+      projects: c.projects,
+      education: {
+        college: c.college,
+        course: c.course,
+        year: c.year,
+        cgpa: c.cgpa,
+      },
+      bio: c.bio,
+    }));
+    const reasoningPrompt = `You are a highly intelligent, expert technical recruiter AI. Given a job description or requirements, analyze the following candidate profiles and return a JSON object with two fields:
+1. "reasoningSteps": an array of clear, step-by-step strings explaining your reasoning process in detail. For each step, explain:
+  - How you parsed and interpreted the prompt (including any implicit requirements or preferences)
+  - How you expanded and inferred required skills, technologies, and keywords
+  - How you filtered candidates (by skills, experience, education, etc.)
+  - How you scored and ranked candidates (including tradeoffs, uncertainties, and any penalizations)
+  - Any special considerations, uncertainties, or recruiter insights
+  - Why you selected the final matches
+2. "matches": a JSON array of the most suitable candidates, sorted by match percentage (100% = perfect fit, 0% = not a fit), with a 'reason' field for each candidate as before.
 
-  return { matches, suggested: suggestedCandidates };
+IMPORTANT: You must use the EXACT SAME scoring, filtering, and match percentage logic as you would in normal mode. The only difference is that you explain your reasoning step by step. The match percentages and candidate order MUST be identical to what you would return in normal mode for the same input. Do NOT inflate or deflate scores in reasoning mode.
+
+Be strict: Output ONLY a valid JSON object with these two fields, no markdown, no extra text, no explanation. Use concise, recruiter-style language for each step. Example:
+{
+  "reasoningSteps": [
+    "Parsed prompt and identified required skills: React, Node.js, MongoDB. Noted preference for 5+ years experience.",
+    "Expanded skills to include related technologies: Redux, Express.js, JavaScript.",
+    "Filtered out candidates missing core skills or with outdated experience.",
+    "Scored candidates based on skill match, years of experience, and recency.",
+    "Ranked and selected top 5 matches based on overall fit and recruiter judgment."
+  ],
+  "matches": [
+    { "name": "John Doe", "match": 98, "skills": ["Java", "Spring"], "reason": "Has all required skills and 7 years recent experience." }
+  ]
+}
+
+Job/Requirement: ${prompt}
+Candidates: ${JSON.stringify(candidateData)}`;
+    let reasoningResponseText = '';
+    if (SEARCH_CANDIDATE_API_KEY_GROQ) {
+      try {
+        const response = await axios.post(
+          GROQ_CANDIDATE_URL,
+          {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: "You are a helpful assistant." },
+              { role: "user", content: reasoningPrompt }
+            ],
+            max_tokens: 2048,
+            temperature: 0.2
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${SEARCH_CANDIDATE_API_KEY_GROQ}`,
+            }
+          }
+        );
+        reasoningResponseText = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
+      } catch (err) {
+        console.error("Groq reasoning mode error, falling back to Gemini:", err);
+      }
+    }
+    if (!reasoningResponseText && GEMINI_API_KEY) {
+      try {
+        const response = await axios.post(
+          GEMINI_API_URL,
+          {
+            contents: [
+              {
+                parts: [
+                  { text: reasoningPrompt }
+                ]
+              }
+            ]
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "X-goog-api-key": GEMINI_API_KEY,
+            }
+          }
+        );
+        reasoningResponseText =
+          (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text ||
+          (response.data as GroqResponse).choices?.[0]?.message?.content ||
+          "";
+      } catch (err) {
+        console.error("Gemini reasoning mode error:", err);
+      }
+    }
+    if (reasoningResponseText) {
+      let cleanText = reasoningResponseText.trim();
+      if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);
+      if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);
+      if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);
+      cleanText = cleanText.trim();
+      try {
+        const parsed = JSON.parse(cleanText);
+        if (Array.isArray(parsed.reasoningSteps)) reasoningSteps = parsed.reasoningSteps;
+        if (Array.isArray(parsed.matches)) matches = parsed.matches;
+      } catch (err) {
+        console.error("Reasoning mode JSON parse error:", err);
+      }
+    }
+  }
+
+  return { matches, suggested: suggestedCandidates, reasoningSteps };
 }
 
 export { getExpandedSkills }; 
