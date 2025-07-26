@@ -7,11 +7,16 @@ import { AiInput } from "@/components/ui/ai-input"
 import { apiClient } from "@/lib/api"
 import { useState, useEffect, useRef } from "react"
 import CardFlip from "@/components/kokonutui/card-flip";
+import { CardCarousel } from "@/components/ui/card-carousel";
 import {
   AIReasoning,
   AIReasoningContent,
   AIReasoningTrigger,
-} from '@/components/ui/kibo-ui/ai/reasoning';
+} from '@/components/ui/ai/reasoning';
+import MinimalCandidateChat from "./minimal-chat";
+import "./improved-carousel.css"
+import "./navigation-styles.css"
+import "./minimal-chat.css"
 
 export default function CandidateSearchPage() {
   const { user } = useAuth()
@@ -31,15 +36,33 @@ export default function CandidateSearchPage() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [currentTyped, setCurrentTyped] = useState('');
   const [typing, setTyping] = useState(false);
+  const [selectedCandidates, setSelectedCandidates] = useState<any[]>([]);
+  const [showCarousel, setShowCarousel] = useState(false);
 
   // Helper to generate dynamic reasoning steps based on prompt
-  const getReasoningSteps = (prompt: string) => [
-    `Let me analyze the requirements: "${prompt}"`,
-    'Expanding required skills and keywords…',
-    'Filtering candidates by skills and experience…',
-    'Scoring and ranking candidates…',
-    'Preparing the best matches for you…',
-  ];
+  const getReasoningSteps = (prompt: string) => {
+    // Check if the prompt was generated from filters
+    const isFilterPrompt = prompt.includes("Looking for") && 
+                           (prompt.includes("who knows") || prompt.includes("with") || prompt.includes("Show"));
+    
+    if (isFilterPrompt) {
+      return [
+        `Analyzing your filter criteria: "${prompt}"`,
+        'Expanding skills and job roles from your filters…',
+        'Matching candidates based on your selected filters…',
+        'Scoring candidates based on filter criteria…',
+        'Preparing the most relevant matches for you…',
+      ];
+    }
+    
+    return [
+      `Let me analyze the requirements: "${prompt}"`,
+      'Expanding required skills and keywords…',
+      'Filtering candidates by skills and experience…',
+      'Scoring and ranking candidates…',
+      'Preparing the best matches for you…',
+    ];
+  };
 
   // Typewriter effect for reasoning steps
   const startReasoning = (prompt: string, stepsArr?: string[]) => {
@@ -79,7 +102,7 @@ export default function CandidateSearchPage() {
     typeChar();
   };
 
-  // Modified handleSearch to trigger reasoning
+  // Modified handleSearch to trigger reasoning and work with filter data
   async function handleSearch(prompt: string, mode: "normal" | "reasoning") {
     // Clear all previous state for a fresh start
     setResults([]);
@@ -97,10 +120,15 @@ export default function CandidateSearchPage() {
     setError(null);
     setHasSearched(true);
     let reasoningSteps: string[] | undefined = undefined;
+    
+    // Save the current prompt for use in summaries
+    setInputValue(prompt);
+    
     if (mode === "reasoning") {
       // Start with a loading animation, will update with real steps if available
       startReasoning(prompt);
     }
+    
     try {
       const res = await apiClient.searchCandidates(prompt, mode)
       let matches = res.matches;
@@ -128,13 +156,13 @@ export default function CandidateSearchPage() {
     }
   }
 
-  // Compute filtered and sorted matches
-  const strongMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) >= 70)
-    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
-  const weakMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) < 70)
-    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
+  // Sort all matches by score, no threshold filtering
+  const sortedMatches = [...results].sort((a, b) => 
+    (b.match || b.matchPercentage || b.match_percent || 0) - 
+    (a.match || a.matchPercentage || a.match_percent || 0)
+  );
 
-  const hasAnyProfiles = strongMatches.length > 0 || weakMatches.length > 0 || suggested.length > 0;
+  const hasAnyProfiles = sortedMatches.length > 0 || suggested.length > 0;
 
   // Helper to get profile image (placeholder for now)
   const getProfileImage = (candidate: any) => "/placeholder-user.jpg";
@@ -163,16 +191,17 @@ export default function CandidateSearchPage() {
     }
   };
 
-  // Fetch summaries for strongMatches at the top level (not inside map)
+  // Fetch summaries for top matches at the top level (not inside map)
   useEffect(() => {
-    strongMatches.forEach((candidate, idx) => {
+    // Fetch summaries for the top candidates (up to first 10)
+    sortedMatches.slice(0, 10).forEach((candidate, idx) => {
       const key = `${candidate.name || 'candidate'}-${idx}`;
       if (!summaries[key]) {
         fetchSummary(candidate, inputValue, key);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strongMatches, inputValue]);
+  }, [sortedMatches, inputValue]);
 
   return (
     <div className="min-h-screen">
@@ -195,43 +224,94 @@ export default function CandidateSearchPage() {
         {error && <div className="mt-8 text-red-500">{error}</div>}
         {!isStreaming && (
           <>
-            {strongMatches.length > 0 && (
-              <div className="mt-8 w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {strongMatches.map((candidate, idx) => {
-                  const key = `${candidate.name || 'candidate'}-${idx}`;
-                  return (
-                    (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
-                      <CardFlip
-                        key={key}
-                        title={candidate.name || "Unnamed Candidate"}
-                        subtitle={candidate.match ? `${candidate.match}% match` : ""}
-                        features={summaries[key] || ["Loading..."]}
-                        contactButtonText="Contact"
-                      />
-                    )
-                  );
-                })}
-              </div>
-            )}
-            {strongMatches.length === 0 && weakMatches.length > 0 && (
-              <div className="mt-8 w-full max-w-5xl">
-                <div className="font-semibold text-lg mb-2 text-white">No top matches found. Here are some relevant profiles:</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {weakMatches.map((candidate, idx) => (
-                    (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
-                      <CardFlip
-                        key={`${candidate.name || 'candidate'}-${idx}`}
-                        title={candidate.name || "Unnamed Candidate"}
-                        subtitle={candidate.match ? `${candidate.match}% match` : ""}
-                        features={getFeatures(candidate)}
-                      />
-                    )
-                  ))}
+            {sortedMatches.length > 0 && (
+              <div className="mt-8 w-full">
+                {/* Toggle button for view mode */}
+                <div className="flex justify-center mb-6">
+                  <div className="inline-flex rounded-md shadow-sm" role="group">
+                    <button
+                      onClick={() => setShowCarousel(false)}
+                      className={`px-4 py-2 text-sm font-medium border rounded-l-lg ${!showCarousel ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                    >
+                      Grid View
+                    </button>
+                    <button
+                      onClick={() => setShowCarousel(true)}
+                      className={`px-4 py-2 text-sm font-medium border rounded-r-lg ${showCarousel ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                    >
+                      Carousel View
+                    </button>
+                  </div>
                 </div>
+                
+                {/* Candidate display based on view mode */}
+                {showCarousel ? (
+                  <div className="mb-8">
+                    <CardCarousel
+                      candidates={sortedMatches}
+                      onSelect={(selected) => setSelectedCandidates(selected)}
+                      showNavigation={true}
+                      showPagination={true}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full max-w-5xl mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                      {sortedMatches.map((candidate, idx) => {
+                        const key = `${candidate.name || 'candidate'}-${idx}`;
+                        const isSelected = selectedCandidates.some(c => 
+                          c.name === candidate.name || (c.id && c.id === candidate.id)
+                        );
+                        
+                        return (
+                          (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
+                            <div key={key} className="relative">
+                              {/* Selection checkbox */}
+                              <div className="absolute top-2 right-2 z-10">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    if (isSelected) {
+                                      setSelectedCandidates(prev => prev.filter(c => 
+                                        c.name !== candidate.name && (!c.id || c.id !== candidate.id)
+                                      ));
+                                    } else {
+                                      setSelectedCandidates(prev => [...prev, candidate]);
+                                    }
+                                  }}
+                                  className="h-5 w-5 accent-[#ff3f17]"
+                                />
+                              </div>
+                              
+                              <CardFlip
+                                key={key}
+                                title={candidate.name || "Unnamed Candidate"}
+                                subtitle={candidate.match ? `${candidate.match}% match` : ""}
+                                features={summaries[key] || getFeatures(candidate)}
+                                contactButtonText="Contact"
+                              />
+                            </div>
+                          )
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* AI Question-Answer Interface */}
+                {selectedCandidates.length > 0 && (
+                  <div className="mt-8 w-full max-w-4xl mx-auto">
+                    <div className="h-[500px] shadow-lg">
+                      <MinimalCandidateChat selectedCandidates={selectedCandidates} />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+            
             {results.length === 0 && suggested.length > 0 && (
-              <div className="mt-8 w-full max-w-5xl">
+              <div className="mt-8 w-full max-w-5xl mx-auto">
                 <div className="font-semibold text-lg mb-2 text-white">No strong matches found. Here are some suggested profiles:</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                   {suggested.map((candidate, idx) => (
@@ -247,6 +327,7 @@ export default function CandidateSearchPage() {
                 </div>
               </div>
             )}
+            
             {!hasAnyProfiles && hasSearched && !loading && !error && (
               <div className="mt-8 text-muted-foreground">No candidates found for your search. Try a different query or broaden your criteria.</div>
             )}

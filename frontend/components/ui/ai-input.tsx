@@ -1,12 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import Image from "next/image"
 import { AnimatePresence, motion } from "framer-motion"
-import { Globe, Paperclip, Plus, Send } from "lucide-react"
+import { Globe, Send } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
+import { CandidateSearchFilter } from "@/components/ui/candidate-search-filter"
 
 interface UseAutoResizeTextareaProps {
   minHeight: number
@@ -91,43 +91,37 @@ export function AiInput({
     maxHeight: MAX_HEIGHT,
   })
   const [showSearch, setShowSearch] = useState(true)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handelClose = (e: any) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "" // Reset file input
-    }
-    setImagePreview(null) // Use null instead of empty string
-  }
-
-  const handelChange = (e: any) => {
-    const file = e.target.files ? e.target.files[0] : null
-    if (file) {
-      setImagePreview(URL.createObjectURL(file))
-    }
-  }
+  const [filterQuery, setFilterQuery] = useState("")
 
   const handleSubmit = () => {
-    if (value.trim() && onSearch) {
-      onSearch(value, showSearch ? "normal" : "reasoning")
+    if ((value.trim() || filterQuery) && onSearch) {
+      // If there's a filter query, combine it with the input value
+      // If only filter query exists, use that as the prompt
+      const prompt = filterQuery 
+        ? value.trim() 
+          ? `${value.trim()}. ${filterQuery}`
+          : filterQuery
+        : value.trim();
+      
+      onSearch(prompt, showSearch ? "normal" : "reasoning")
     }
     // Do not clear value here; parent will control clearing if needed
     adjustHeight(true)
   }
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview)
-      }
-    }
-  }, [imagePreview])
+  
+  const handleFilterChange = (query: string) => {
+    setFilterQuery(query)
+  }
   return (
     <div className="w-full py-4">
       <div className="relative max-w-xl border rounded-[22px] border-black/5 p-1 w-full mx-auto">
+        {filterQuery && (
+          <div className="absolute -top-8 left-0 right-0 flex justify-center">
+            <span className="text-sm text-[#ff3f17] bg-[#ff3f17]/10 px-3 py-1 rounded-full max-w-md truncate">
+              <span className="font-medium">Filter query:</span> {filterQuery}
+            </span>
+          </div>
+        )}
         <div className="relative rounded-2xl border border-black/5 bg-neutral-800/5 flex flex-col">
           <div
             className="overflow-y-auto"
@@ -160,52 +154,19 @@ export function AiInput({
           </div>
 
           <div className="h-12 bg-black/5 dark:bg-white/5 rounded-b-xl">
-            <div className="absolute left-3 bottom-3 flex items-center gap-2">
-              <label
-                className={cn(
-                  "cursor-pointer relative rounded-full p-2 bg-black/5 dark:bg-white/5",
-                  imagePreview
-                    ? "bg-[#ff3f17]/15 border border-[#ff3f17] text-[#ff3f17]"
-                    : "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
-                )}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handelChange}
-                  className="hidden"
-                />
-                <Paperclip
-                  className={cn(
-                    "w-4 h-4 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors",
-                    imagePreview && "text-[#ff3f17]"
-                  )}
-                />
-                {imagePreview && (
-                  <div className="absolute w-[100px] h-[100px] top-14 -left-4">
-                    <Image
-                      className="object-cover rounded-2xl"
-                      src={imagePreview || "/picture1.jpeg"}
-                      height={500}
-                      width={500}
-                      alt="additional image"
-                    />
-                    <button
-                      onClick={handelClose}
-                      className="bg-[#e8e8e8] text-[#464646] absolute -top-1 -left-1 shadow-3xl rounded-full rotate-45"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </label>
+            <div className="absolute left-3 bottom-3 flex items-center">
+              {/* Filter component */}
+              <CandidateSearchFilter
+                onFilterChange={handleFilterChange}
+              />
+              
               <button
                 type="button"
                 onClick={() => {
                   setShowSearch(!showSearch)
                 }}
                 className={cn(
-                  "rounded-full transition-all flex items-center gap-2 px-1.5 py-1 border h-8",
+                  "rounded-full transition-all flex items-center gap-2 px-1.5 py-1 border h-8 ml-0.5",
                   showSearch
                     ? "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
                     : "bg-[#ff3f17]/15 border-[#ff3f17] text-[#ff3f17]"
@@ -262,9 +223,10 @@ export function AiInput({
               <button
                 type="button"
                 onClick={handleSubmit}
+                disabled={!value.trim() && !filterQuery}
                 className={cn(
                   "rounded-full p-2 transition-colors",
-                  value
+                  value.trim() || filterQuery
                     ? "bg-[#ff3f17]/15 text-[#ff3f17]"
                     : "bg-black/5 dark:bg-white/5 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
                 )}

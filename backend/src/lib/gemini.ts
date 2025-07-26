@@ -25,13 +25,81 @@ interface GeminiResponse {
   candidates: GeminiCandidate[];
 }
 
-const GEMINI_API_KEY = process.env.SEARCH_CANDIDATE_API_KEY;
+// API key management
+// Define all available API keys in arrays for easy rotation
+const GEMINI_API_KEYS = [
+  process.env.SEARCH_CANDIDATE_API_KEY,
+  process.env.SEARCH_CANDIDATE_API_KEY_1,
+  process.env.SEARCH_CANDIDATE_API_KEY_2,
+  process.env.SEARCH_CANDIDATE_API_KEY_3,
+].filter(Boolean); // Filter out undefined or empty keys
+
+const GROQ_API_KEYS = [
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_1,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_2,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_3,
+].filter(Boolean);
+
+const CANDIDATE_INFO_API_KEYS = [
+  process.env.CANDIDATE_INFO_API_KEY,
+  process.env.CANDIDATE_INFO_API_KEY_1,
+  process.env.CANDIDATE_INFO_API_KEY_2,
+  process.env.CANDIDATE_INFO_API_KEY_3,
+].filter(Boolean);
+
+const CANDIDATE_INFO_API_KEYS_GROQ = [
+  process.env.CANDIDATE_INFO_API_KEY_GROQ,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_1,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_2,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_3,
+].filter(Boolean);
+
+// Keep track of the current index for each key type to rotate through
+let geminiKeyIndex = 0;
+let groqKeyIndex = 0;
+let candidateInfoKeyIndex = 0;
+let candidateInfoGroqKeyIndex = 0;
+
+// Functions to get the next available API key
+const getNextGeminiKey = () => {
+  if (GEMINI_API_KEYS.length === 0) return null;
+  const key = GEMINI_API_KEYS[geminiKeyIndex];
+  geminiKeyIndex = (geminiKeyIndex + 1) % GEMINI_API_KEYS.length;
+  return key;
+};
+
+const getNextGroqKey = () => {
+  if (GROQ_API_KEYS.length === 0) return null;
+  const key = GROQ_API_KEYS[groqKeyIndex];
+  groqKeyIndex = (groqKeyIndex + 1) % GROQ_API_KEYS.length;
+  return key;
+};
+
+const getNextCandidateInfoKey = () => {
+  if (CANDIDATE_INFO_API_KEYS.length === 0) return null;
+  const key = CANDIDATE_INFO_API_KEYS[candidateInfoKeyIndex];
+  candidateInfoKeyIndex = (candidateInfoKeyIndex + 1) % CANDIDATE_INFO_API_KEYS.length;
+  return key;
+};
+
+const getNextCandidateInfoGroqKey = () => {
+  if (CANDIDATE_INFO_API_KEYS_GROQ.length === 0) return null;
+  const key = CANDIDATE_INFO_API_KEYS_GROQ[candidateInfoGroqKeyIndex];
+  candidateInfoGroqKeyIndex = (candidateInfoGroqKeyIndex + 1) % CANDIDATE_INFO_API_KEYS_GROQ.length;
+  return key;
+};
+
+// Get current keys (initial values)
+const GEMINI_API_KEY = getNextGeminiKey();
+const CANDIDATE_INFO_API_KEY = getNextCandidateInfoKey();
+const CANDIDATE_INFO_API_KEY_GROQ = getNextCandidateInfoGroqKey();
+const SEARCH_CANDIDATE_API_KEY_GROQ = getNextGroqKey();
+
+// API URLs
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const CANDIDATE_INFO_API_KEY = process.env.CANDIDATE_INFO_API_KEY;
-const CANDIDATE_INFO_API_KEY_GROQ = process.env.CANDIDATE_INFO_API_KEY_GROQ;
 const GEMINI_SKILL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const GROQ_SKILL_URL = "https://api.groq.com/openai/v1/chat/completions";
-const SEARCH_CANDIDATE_API_KEY_GROQ = process.env.SEARCH_CANDIDATE_API_KEY_GROQ;
 const GROQ_CANDIDATE_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // AI-powered skill expansion (GROQ preferred, Gemini fallback)
@@ -197,14 +265,18 @@ export async function getCandidateMatches(
     }));
     const strictJsonInstruction = `Respond ONLY with a valid JSON array of objects, no explanation, no markdown, no extra text. Do NOT use markdown or triple backticks, just output raw JSON.
 
-- If the user requested a specific number of candidates (e.g., 5, 10, 1), return exactly that many, sorted by match percentage descending.
-- If the user said 'all', 'every', or similar, return up to 20, but only the best matches.
-- If the user said 'just one', 'the best', 'top', etc., return only the single best match.
-- If the user said 'at least N', 'minimum N', return at least N if possible, but not more than 20.
-- If the user is vague, return 5-10 best matches.
-- Never return more than 20 candidates.
-- Always prioritize quality over quantity.
-- Always sort by match percentage descending.
+- IMPORTANT: Count rules must be followed exactly:
+  - If the user explicitly requests "exactly X candidates", "top X candidates", "return X candidates", etc., return AT MOST that many candidates.
+  - NEVER DUPLICATE PROFILES to reach a requested count - if there aren't enough candidates, return fewer rather than duplicating.
+  - If fewer candidates exist than requested, just return all available unique candidates with a note in the first candidate's reason field like "Note: Only N candidates matched your criteria".
+  - If the user says "all", "every", "all candidates", etc., return ALL candidates sorted by match percentage.
+  - If the user says "just one", "the best", "top candidate", etc., return only the single best match.
+  - If the user says "at least X", "minimum X", etc., return at least X if available (without duplication), but not more than needed.
+  - If the user makes no count specification, return all unique candidates sorted by match percentage.
+  - Never apply a minimum percentage cutoff to filter out candidates.
+  - Include all candidates with any degree of match (even low percentages).
+  - Always sort by match percentage descending.
+
 - Example:
 [
   { "name": "John Doe", "match": 98, "skills": ["Java", "Spring", "Maven", "RESTful API", "React"], "bio": "Senior Java Full Stack Developer with 7 years experience.", "reason": "Has all required Java backend and frontend skills, 7+ years experience, recent relevant job titles." },
@@ -221,8 +293,10 @@ You are a helpful, expert technical recruiter AI. Given a job description or req
 - If a candidate's experience is missing or unclear, infer where possible, but penalize uncertainty.
 - If a candidate's profile mentions soft skills, leadership, or communication, consider these as a plus for senior roles.
 - For each candidate, provide a concise, human-like 'reason' field explaining both strengths and weaknesses for this job, as if you are a senior recruiter presenting a shortlist to a hiring manager.
+- CRITICAL: NEVER duplicate profiles to reach a requested count number. If there aren't enough matching candidates, return fewer with a note in the first candidate's reason field stating "Note: Only [number] candidates matched the criteria".
+- Return only unique candidates, even if that means returning fewer than requested.
+- If there aren't enough candidates to meet the requested number, make it explicit in your response.
 - If there are ties, prefer candidates with more years of experience, more recent experience, or more relevant projects.
-- If there are not enough strong matches, return fewer candidates.
 - All previous instructions about number of candidates, sorting, and JSON output strictness apply.
 - Scoring rules:
   - Only give a high score (90%+) if the candidate has ALL the required core skills/technologies for the job: ${requiredSkills.join(', ')}.
@@ -357,7 +431,10 @@ Candidates: ${JSON.stringify(candidateData)}`;
   - Why you selected the final matches
 2. "matches": a JSON array of the most suitable candidates, sorted by match percentage (100% = perfect fit, 0% = not a fit), with a 'reason' field for each candidate as before.
 
-IMPORTANT: You must use the EXACT SAME scoring, filtering, and match percentage logic as you would in normal mode. The only difference is that you explain your reasoning step by step. The match percentages and candidate order MUST be identical to what you would return in normal mode for the same input. Do NOT inflate or deflate scores in reasoning mode.
+CRITICAL REQUIREMENTS:
+- NEVER duplicate profiles to reach a requested count number. If there aren't enough matching candidates, return fewer with a note in the first candidate's reason field stating "Note: Only [number] candidates matched the criteria".
+- If a specific number of candidates is requested (e.g., "top 5") but fewer are available, include an explanation step about the limited available matches.
+- You must use the EXACT SAME scoring, filtering, and match percentage logic as you would in normal mode. The only difference is that you explain your reasoning step by step. The match percentages and candidate order MUST be identical to what you would return in normal mode for the same input. Do NOT inflate or deflate scores in reasoning mode.
 
 Be strict: Output ONLY a valid JSON object with these two fields, no markdown, no extra text, no explanation. Use concise, recruiter-style language for each step. Example:
 {
@@ -446,6 +523,158 @@ Candidates: ${JSON.stringify(candidateData)}`;
   }
 
   return { matches, suggested: suggestedCandidates, reasoningSteps };
+}
+
+// Function to get answers to questions about candidates
+export async function getCandidateAnswers(candidates: any[], question: string) {
+  // Build a detailed system prompt that explains the candidate data
+  const systemPrompt = `You are an AI assistant helping recruiters understand candidate profiles. Answer questions about the candidates provided. Be accurate, helpful, and concise.
+
+The question is: "${question}"
+
+The candidate data includes:
+${candidates.map((c, i) => `Candidate ${i+1}: ${JSON.stringify(c, null, 2)}`).join('\n\n')}
+
+Guidelines:
+- Answer based ONLY on the information in the candidate profiles.
+- If specific information is not available, say so clearly.
+- If asked to compare candidates, provide a fair analysis based on their skills, experience, and other relevant factors.
+- If asked about contact details or personal information, provide only what's available in the profiles.
+
+RESPONSE FORMAT REQUIREMENTS (IMPORTANT):
+1. FORMAT YOUR RESPONSE WITH MARKDOWN:
+   * Use **bold** for emphasis and important points
+   * Use headings (# for main headings, ## for subheadings) to organize information
+   * Use bullet points or numbered lists for listing information
+
+2. WHEN LISTING SKILLS WITH RATINGS:
+   * ALWAYS use a consistent format: "Skill: Rating/10" (e.g., "JavaScript: 8/10")
+   * Format each skill on a new line with bullet points:
+     - JavaScript: 8/10
+     - Python: 7/10
+   * OR use a markdown table with clear headers:
+     | Skill | Rating |
+     | ----- | ------ |
+     | JavaScript | 8/10 |
+     | Python | 7/10 |
+
+3. WHEN COMPARING CANDIDATES:
+   * ALWAYS use a markdown table format with clear headers:
+     | Skill | Candidate1 | Candidate2 |
+     | ----- | ---------- | ---------- |
+     | JavaScript | 8/10 | 6/10 |
+     | Python | 7/10 | 9/10 |
+   * For overall comparisons, use a clear rating system:
+     | Candidate | Overall Rating |
+     | --------- | -------------- |
+     | Candidate1 | 8/10 |
+     | Candidate2 | 7/10 |
+
+4. CODE AND TECHNICAL SKILLS:
+   * Use \`backticks\` around skill names when discussing technical skills
+   * Use code blocks with syntax highlighting for any code examples
+   * Mention version numbers or frameworks if specified in candidate profiles
+
+5. WORK EXPERIENCE:
+   * Format work history consistently with company, role, and duration
+   * Highlight relevant achievements for the job requirements
+
+Remember, your response will be parsed by an automated system that extracts skill ratings and comparisons, so it's crucial to follow these formatting guidelines precisely.
+- ALWAYS provide numerical ratings for skills on a 1-10 scale when discussing candidate skills or comparing candidates
+- When comparing candidates, ALWAYS include a "Rating: X/10" for each relevant skill or attribute
+- ALWAYS present comparisons in a clear, structured way that can be easily visualized
+- For skill analyses, use the format "SkillName: X/10" consistently (e.g., "JavaScript: 8/10")
+- Keep your answer concise but comprehensive.
+- NEVER make up information that isn't in the provided data.
+- If asked about technical skills, refer specifically to the candidates' listed skills and experience.
+- If providing numerical ratings for skills, use a consistent 1-10 scale based on the available information.
+- NEVER leave out key information that could be relevant to the question.`;
+
+  let answer = '';
+  
+  // Try Groq first with key rotation if needed
+  for (let attempt = 0; attempt < GROQ_API_KEYS.length && !answer; attempt++) {
+    const currentGroqKey = getNextGroqKey();
+    
+    if (currentGroqKey) {
+      try {
+        console.log(`Trying GROQ API key ${attempt + 1}/${GROQ_API_KEYS.length}`);
+        const response = await axios.post(
+          GROQ_CANDIDATE_URL,
+          {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: "You are a helpful assistant." },
+              { role: "user", content: systemPrompt }
+            ],
+            max_tokens: 2048,
+            temperature: 0.2
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${currentGroqKey}`,
+            }
+          }
+        );
+        answer = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
+        if (answer) {
+          console.log("Successfully got response from GROQ");
+          break;
+        }
+      } catch (err) {
+        console.error(`GROQ API key ${attempt + 1} failed:`, err);
+        // Continue to the next key
+      }
+    }
+  }
+  
+  // Fallback to Gemini with key rotation if needed
+  if (!answer) {
+    for (let attempt = 0; attempt < GEMINI_API_KEYS.length && !answer; attempt++) {
+      const currentGeminiKey = getNextGeminiKey();
+      
+      if (currentGeminiKey) {
+        try {
+          console.log(`Trying Gemini API key ${attempt + 1}/${GEMINI_API_KEYS.length}`);
+          const response = await axios.post(
+            GEMINI_API_URL,
+            {
+              contents: [
+                {
+                  parts: [
+                    { text: systemPrompt }
+                  ]
+                }
+              ]
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "X-goog-api-key": currentGeminiKey,
+              }
+            }
+          );
+          answer = (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (answer) {
+            console.log("Successfully got response from Gemini");
+            break;
+          }
+        } catch (err) {
+          console.error(`Gemini API key ${attempt + 1} failed:`, err);
+          // Continue to the next key
+        }
+      }
+    }
+  }
+  
+  // If all API attempts failed
+  if (!answer) {
+    console.error("All API attempts failed for candidate Q&A");
+    answer = "I'm sorry, but I encountered an error while analyzing the candidate profiles. Please try again later.";
+  }
+  
+  return { answer };
 }
 
 export { getExpandedSkills }; 

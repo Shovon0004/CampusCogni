@@ -1,0 +1,21 @@
+/* Add custom styles for the CardFlip component in CardCarousel */
+.candidate-swiper .card-flip-container > div {
+  width: 280px !important;
+  max-width: 280px !important;
+  height: 340px !important;
+  margin: 0 auto;
+}
+
+/* Ensure CardFlip inside carousel has proper sizing */
+.card-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: auto;
+  width: 100%;
+}
+
+/* Fix perspective issues */
+.card-wrapper .card-flip-container [perspective] {
+  perspective: 2000px !important;
+}

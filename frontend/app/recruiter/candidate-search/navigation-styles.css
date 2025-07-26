@@ -1,0 +1,43 @@
+/* Custom navigation button styles */
+.candidate-swiper .swiper-button-next,
+.candidate-swiper .swiper-button-prev {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(255, 63, 23, 0.85);
+  border-radius: 50%;
+  color: white !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.candidate-swiper .swiper-button-next:hover,
+.candidate-swiper .swiper-button-prev:hover {
+  background-color: rgba(255, 63, 23, 1);
+  transform: scale(1.05);
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.candidate-swiper .swiper-button-next:after,
+.candidate-swiper .swiper-button-prev:after {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.candidate-swiper .swiper-button-next.swiper-button-disabled,
+.candidate-swiper .swiper-button-prev.swiper-button-disabled {
+  opacity: 0.35;
+  background-color: rgba(255, 63, 23, 0.5);
+}
+
+/* Pagination bullets */
+.candidate-swiper .swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 63, 23, 0.5);
+  opacity: 0.7;
+}
+
+.candidate-swiper .swiper-pagination-bullet-active {
+  background: rgba(255, 63, 23, 1);
+  opacity: 1;
+}
