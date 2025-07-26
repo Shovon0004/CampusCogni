@@ -1,15 +1,24 @@
 "use client";
 
-import { ArrowRight, Bot, Loader2 } from "lucide-react";
+import { ArrowRight, Bot, Loader2, Award, Briefcase, Code, ThumbsUp, LineChart } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAutoResizeTextarea } from "../../../hooks/use-auto-resize-textarea";
+import TypewriterEffect from "@/components/typewriter-effect";
+import SkillBar from "@/components/skill-bar";
+import ComparisonCard from "@/components/comparison-card";
+import { apiClient } from "@/lib/api";
 import "../../../app/recruiter/candidate-search/minimal-chat.css";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  isTyping?: boolean;
+  visualData?: {
+    type: "comparison" | "skills" | "text";
+    data: any;
+  };
 }
 
 export default function MinimalCandidateChat({ selectedCandidates = [] }: { selectedCandidates?: any[] }) {
@@ -38,35 +47,122 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Helper function to detect comparison requests
+  const isComparisonRequest = (text: string): boolean => {
+    const comparisonKeywords = [
+      'compare', 'comparison', 'versus', 'vs', 'difference', 'better', 
+      'stronger', 'weaker', 'match', 'against', 'which one', 'who has'
+    ];
+    
+    return comparisonKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    );
+  };
+
+  // Helper to detect skill analysis requests
+  const isSkillAnalysisRequest = (text: string): boolean => {
+    const skillKeywords = [
+      'skill', 'expertise', 'proficiency', 'competency', 'ability', 
+      'experience with', 'knowledge of', 'technical', 'stack'
+    ];
+    
+    return skillKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    );
+  };
+
   const handleSendMessage = async () => {
-    if (!value.trim() || isLoading) return;
+    if (!value.trim() || isLoading || selectedCandidates.length === 0) return;
     
     // Add user message
     const userMessage = { role: "user" as const, content: value };
     setMessages(prev => [...prev, userMessage]);
+    
+    const userQuery = value;
     setValue("");
     adjustHeight(true);
     setIsLoading(true);
     
     try {
-      // For now, just respond with a placeholder
-      setTimeout(() => {
+      // First add a placeholder that will show typing animation
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "",
+        isTyping: true 
+      }]);
+
+      // Determine which API endpoint to use based on the query
+      let response;
+      
+      if (isComparisonRequest(userQuery) && selectedCandidates.length > 1) {
+        // Use comparison API for comparison requests with multiple candidates
+        response = await apiClient.compareCandidates(selectedCandidates, userQuery);
+      } else {
+        // Use general Q&A API for other queries
+        response = await apiClient.askAboutCandidates(selectedCandidates, userQuery);
+      }
+
+      // Remove the typing message
+      setMessages(prev => prev.filter(msg => !msg.isTyping));
+
+      // Process the response based on the type of query
+      if (isComparisonRequest(userQuery) && selectedCandidates.length > 1) {
+        // For comparison requests, add visualization data
+        const comparisonData = response.comparison || {};
+        
+        // Create a message with visual comparison data
         setMessages(prev => [
           ...prev, 
-          { 
-            role: "assistant", 
-            content: selectedCandidates.length > 0
-              ? `I can provide information about ${selectedCandidates.length} selected candidate(s). What specific details would you like to know?`
-              : "This is a placeholder response. The AI chat functionality will be implemented soon."
+          {
+            role: "assistant",
+            content: response.summary || "Here's a comparison of the selected candidates:",
+            visualData: {
+              type: "comparison",
+              data: {
+                skills: comparisonData.skills || [],
+                experience: comparisonData.experience || [],
+                education: comparisonData.education || [],
+                overall: comparisonData.overall || []
+              }
+            }
           }
         ]);
-        setIsLoading(false);
-      }, 1000);
+      } 
+      else if (isSkillAnalysisRequest(userQuery)) {
+        // For skill analysis requests, add skill visualization
+        const skillsData = response.skills || {};
+        
+        setMessages(prev => [
+          ...prev, 
+          {
+            role: "assistant",
+            content: response.answer || "Here's an analysis of the candidate's skills:",
+            visualData: {
+              type: "skills",
+              data: skillsData
+            }
+          }
+        ]);
+      }
+      else {
+        // For general queries, just show the answer
+        setMessages(prev => [
+          ...prev, 
+          {
+            role: "assistant",
+            content: response.answer || "Based on the profiles of the selected candidates, I can provide the following information."
+          }
+        ]);
+      }
     } catch (error) {
+      // Remove typing indicator if there was an error
+      setMessages(prev => prev.filter(msg => !msg.isTyping));
+      
       setMessages(prev => [
         ...prev, 
-        { role: "assistant", content: "Sorry, I encountered an error processing your request." }
+        { role: "assistant", content: "Sorry, I encountered an error processing your request. Please try again." }
       ]);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -105,12 +201,83 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
                 <span className="text-xs font-medium text-white/70">AI</span>
               </div>
             )}
-            <p className="text-sm whitespace-pre-wrap">
-              {message.content}
-            </p>
+            
+            {/* Message content with typewriter effect for assistant */}
+            <div className="text-sm">
+              {message.role === 'assistant' && message.isTyping ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 text-white/70 animate-spin" />
+                  <span className="text-white/70">typing...</span>
+                </div>
+              ) : message.role === 'assistant' ? (
+                <TypewriterEffect text={message.content} delay={10} />
+              ) : (
+                <p className="whitespace-pre-wrap">{message.content}</p>
+              )}
+            </div>
+            
+            {/* Render visual data if available */}
+            {message.visualData && (
+              <div className="mt-3 pt-3 border-t border-white/10">
+                {message.visualData.type === 'comparison' && (
+                  <div className="space-y-4">
+                    {message.visualData.data.overall && message.visualData.data.overall.length > 0 && (
+                      <ComparisonCard 
+                        title="Overall Comparison" 
+                        icon={<Award className="h-4 w-4" />}
+                        candidates={message.visualData.data.overall.map((item: any) => ({
+                          name: item.name,
+                          value: item.score,
+                          color: `bg-gradient-to-r from-gray-500 to-gray-600`
+                        }))}
+                      />
+                    )}
+                    
+                    {message.visualData.data.skills && message.visualData.data.skills.length > 0 && (
+                      <ComparisonCard 
+                        title="Technical Skills" 
+                        icon={<Code className="h-4 w-4" />}
+                        candidates={message.visualData.data.skills.map((item: any) => ({
+                          name: item.name,
+                          value: item.score,
+                          color: `bg-gradient-to-r from-gray-400 to-gray-500`
+                        }))}
+                      />
+                    )}
+                    
+                    {message.visualData.data.experience && message.visualData.data.experience.length > 0 && (
+                      <ComparisonCard 
+                        title="Experience" 
+                        icon={<Briefcase className="h-4 w-4" />}
+                        candidates={message.visualData.data.experience.map((item: any) => ({
+                          name: item.name,
+                          value: item.score,
+                          color: `bg-gradient-to-r from-gray-500 to-gray-600`
+                        }))}
+                      />
+                    )}
+                  </div>
+                )}
+                
+                {message.visualData.type === 'skills' && (
+                  <div className="space-y-3 mt-1">
+                    <h4 className="text-xs font-medium text-white/70">Skill Assessment:</h4>
+                    {Object.entries(message.visualData.data).map(([skill, score]: [string, any], idx) => (
+                      <SkillBar 
+                        key={idx}
+                        skillName={skill}
+                        value={typeof score === 'number' ? score : 0}
+                        maxValue={10}
+                        color={`bg-gradient-to-r from-gray-500 to-gray-600`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
-        {isLoading && (
+        {isLoading && !messages.some(m => m.isTyping) && (
           <div className="ai-message assistant bg-[#1E1E1E] p-3 rounded-lg mb-3">
             <div className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 text-white/70 animate-spin" />
@@ -125,22 +292,31 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       {selectedCandidates.length > 1 && (
         <div className="px-3 mb-2 flex flex-wrap gap-2">
           <button
-            onClick={() => setValue(`Compare ${selectedCandidates.length} candidates based on skills and experience`)}
+            onClick={() => setValue(`Compare ${selectedCandidates.length} candidates based on their technical skills, experience, and overall fit`)}
             className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
           >
-            Compare candidates
+            <span className="flex items-center gap-1">
+              <LineChart className="w-3 h-3" />
+              Compare candidates
+            </span>
           </button>
           <button
-            onClick={() => setValue("Who has better technical skills?")}
+            onClick={() => setValue("Who has better technical skills and what's the difference between their expertise?")}
             className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
           >
-            Compare technical skills
+            <span className="flex items-center gap-1">
+              <Code className="w-3 h-3" />
+              Technical skills
+            </span>
           </button>
           <button
-            onClick={() => setValue("Who is more suitable for a senior position?")}
+            onClick={() => setValue("Who would be the best fit for a senior developer position and why?")}
             className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
           >
-            Seniority assessment
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              Seniority match
+            </span>
           </button>
         </div>
       )}
@@ -148,16 +324,31 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       {selectedCandidates.length === 1 && (
         <div className="px-3 mb-2 flex flex-wrap gap-2">
           <button
-            onClick={() => setValue(`Summarize ${selectedCandidates[0]?.name || "candidate"}'s strengths and weaknesses`)}
+            onClick={() => setValue(`Analyze ${selectedCandidates[0]?.name || "candidate"}'s technical skills with ratings`)}
             className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
           >
-            Strengths & weaknesses
+            <span className="flex items-center gap-1">
+              <Code className="w-3 h-3" />
+              Skill analysis
+            </span>
           </button>
           <button
-            onClick={() => setValue(`What role would ${selectedCandidates[0]?.name || "this candidate"} be best suited for?`)}
+            onClick={() => setValue(`What are ${selectedCandidates[0]?.name || "this candidate"}'s strengths and weaknesses?`)}
             className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
           >
-            Best role fit
+            <span className="flex items-center gap-1">
+              <ThumbsUp className="w-3 h-3" />
+              Strengths & weaknesses
+            </span>
+          </button>
+          <button
+            onClick={() => setValue(`What role would ${selectedCandidates[0]?.name || "this candidate"} be best suited for based on their experience?`)}
+            className="text-xs py-1 px-2.5 bg-[#2A2A2A] hover:bg-[#333333] text-white/80 rounded-full transition-colors"
+          >
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              Best role match
+            </span>
           </button>
         </div>
       )}
