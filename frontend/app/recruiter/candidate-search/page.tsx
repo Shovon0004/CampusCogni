@@ -33,13 +33,29 @@ export default function CandidateSearchPage() {
   const [typing, setTyping] = useState(false);
 
   // Helper to generate dynamic reasoning steps based on prompt
-  const getReasoningSteps = (prompt: string) => [
-    `Let me analyze the requirements: "${prompt}"`,
-    'Expanding required skills and keywords…',
-    'Filtering candidates by skills and experience…',
-    'Scoring and ranking candidates…',
-    'Preparing the best matches for you…',
-  ];
+  const getReasoningSteps = (prompt: string) => {
+    // Check if the prompt was generated from filters
+    const isFilterPrompt = prompt.includes("Looking for") && 
+                           (prompt.includes("who knows") || prompt.includes("with") || prompt.includes("Show"));
+    
+    if (isFilterPrompt) {
+      return [
+        `Analyzing your filter criteria: "${prompt}"`,
+        'Expanding skills and job roles from your filters…',
+        'Matching candidates based on your selected filters…',
+        'Scoring candidates based on filter criteria…',
+        'Preparing the most relevant matches for you…',
+      ];
+    }
+    
+    return [
+      `Let me analyze the requirements: "${prompt}"`,
+      'Expanding required skills and keywords…',
+      'Filtering candidates by skills and experience…',
+      'Scoring and ranking candidates…',
+      'Preparing the best matches for you…',
+    ];
+  };
 
   // Typewriter effect for reasoning steps
   const startReasoning = (prompt: string, stepsArr?: string[]) => {
@@ -79,7 +95,7 @@ export default function CandidateSearchPage() {
     typeChar();
   };
 
-  // Modified handleSearch to trigger reasoning
+  // Modified handleSearch to trigger reasoning and work with filter data
   async function handleSearch(prompt: string, mode: "normal" | "reasoning") {
     // Clear all previous state for a fresh start
     setResults([]);
@@ -97,10 +113,15 @@ export default function CandidateSearchPage() {
     setError(null);
     setHasSearched(true);
     let reasoningSteps: string[] | undefined = undefined;
+    
+    // Save the current prompt for use in summaries
+    setInputValue(prompt);
+    
     if (mode === "reasoning") {
       // Start with a loading animation, will update with real steps if available
       startReasoning(prompt);
     }
+    
     try {
       const res = await apiClient.searchCandidates(prompt, mode)
       let matches = res.matches;
@@ -128,13 +149,13 @@ export default function CandidateSearchPage() {
     }
   }
 
-  // Compute filtered and sorted matches
-  const strongMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) >= 70)
-    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
-  const weakMatches = results.filter(candidate => (candidate.match || candidate.matchPercentage || candidate.match_percent || 0) < 70)
-    .sort((a, b) => (b.match || b.matchPercentage || b.match_percent || 0) - (a.match || a.matchPercentage || a.match_percent || 0));
+  // Sort all matches by score, no threshold filtering
+  const sortedMatches = [...results].sort((a, b) => 
+    (b.match || b.matchPercentage || b.match_percent || 0) - 
+    (a.match || a.matchPercentage || a.match_percent || 0)
+  );
 
-  const hasAnyProfiles = strongMatches.length > 0 || weakMatches.length > 0 || suggested.length > 0;
+  const hasAnyProfiles = sortedMatches.length > 0 || suggested.length > 0;
 
   // Helper to get profile image (placeholder for now)
   const getProfileImage = (candidate: any) => "/placeholder-user.jpg";
@@ -163,16 +184,17 @@ export default function CandidateSearchPage() {
     }
   };
 
-  // Fetch summaries for strongMatches at the top level (not inside map)
+  // Fetch summaries for top matches at the top level (not inside map)
   useEffect(() => {
-    strongMatches.forEach((candidate, idx) => {
+    // Fetch summaries for the top candidates (up to first 10)
+    sortedMatches.slice(0, 10).forEach((candidate, idx) => {
       const key = `${candidate.name || 'candidate'}-${idx}`;
       if (!summaries[key]) {
         fetchSummary(candidate, inputValue, key);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strongMatches, inputValue]);
+  }, [sortedMatches, inputValue]);
 
   return (
     <div className="min-h-screen">
@@ -195,38 +217,23 @@ export default function CandidateSearchPage() {
         {error && <div className="mt-8 text-red-500">{error}</div>}
         {!isStreaming && (
           <>
-            {strongMatches.length > 0 && (
-              <div className="mt-8 w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {strongMatches.map((candidate, idx) => {
-                  const key = `${candidate.name || 'candidate'}-${idx}`;
-                  return (
-                    (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
-                      <CardFlip
-                        key={key}
-                        title={candidate.name || "Unnamed Candidate"}
-                        subtitle={candidate.match ? `${candidate.match}% match` : ""}
-                        features={summaries[key] || ["Loading..."]}
-                        contactButtonText="Contact"
-                      />
-                    )
-                  );
-                })}
-              </div>
-            )}
-            {strongMatches.length === 0 && weakMatches.length > 0 && (
+            {sortedMatches.length > 0 && (
               <div className="mt-8 w-full max-w-5xl">
-                <div className="font-semibold text-lg mb-2 text-white">No top matches found. Here are some relevant profiles:</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {weakMatches.map((candidate, idx) => (
-                    (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
-                      <CardFlip
-                        key={`${candidate.name || 'candidate'}-${idx}`}
-                        title={candidate.name || "Unnamed Candidate"}
-                        subtitle={candidate.match ? `${candidate.match}% match` : ""}
-                        features={getFeatures(candidate)}
-                      />
-                    )
-                  ))}
+                  {sortedMatches.map((candidate, idx) => {
+                    const key = `${candidate.name || 'candidate'}-${idx}`;
+                    return (
+                      (candidate.name || (candidate.skills && candidate.skills.length > 0)) && (
+                        <CardFlip
+                          key={key}
+                          title={candidate.name || "Unnamed Candidate"}
+                          subtitle={candidate.match ? `${candidate.match}% match` : ""}
+                          features={summaries[key] || getFeatures(candidate)}
+                          contactButtonText="Contact"
+                        />
+                      )
+                    );
+                  })}
                 </div>
               </div>
             )}

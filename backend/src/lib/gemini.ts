@@ -197,14 +197,18 @@ export async function getCandidateMatches(
     }));
     const strictJsonInstruction = `Respond ONLY with a valid JSON array of objects, no explanation, no markdown, no extra text. Do NOT use markdown or triple backticks, just output raw JSON.
 
-- If the user requested a specific number of candidates (e.g., 5, 10, 1), return exactly that many, sorted by match percentage descending.
-- If the user said 'all', 'every', or similar, return up to 20, but only the best matches.
-- If the user said 'just one', 'the best', 'top', etc., return only the single best match.
-- If the user said 'at least N', 'minimum N', return at least N if possible, but not more than 20.
-- If the user is vague, return 5-10 best matches.
-- Never return more than 20 candidates.
-- Always prioritize quality over quantity.
-- Always sort by match percentage descending.
+- IMPORTANT: Count rules must be followed exactly:
+  - If the user explicitly requests "exactly X candidates", "top X candidates", "return X candidates", etc., return AT MOST that many candidates.
+  - NEVER DUPLICATE PROFILES to reach a requested count - if there aren't enough candidates, return fewer rather than duplicating.
+  - If fewer candidates exist than requested, just return all available unique candidates with a note in the first candidate's reason field like "Note: Only N candidates matched your criteria".
+  - If the user says "all", "every", "all candidates", etc., return ALL candidates sorted by match percentage.
+  - If the user says "just one", "the best", "top candidate", etc., return only the single best match.
+  - If the user says "at least X", "minimum X", etc., return at least X if available (without duplication), but not more than needed.
+  - If the user makes no count specification, return all unique candidates sorted by match percentage.
+  - Never apply a minimum percentage cutoff to filter out candidates.
+  - Include all candidates with any degree of match (even low percentages).
+  - Always sort by match percentage descending.
+
 - Example:
 [
   { "name": "John Doe", "match": 98, "skills": ["Java", "Spring", "Maven", "RESTful API", "React"], "bio": "Senior Java Full Stack Developer with 7 years experience.", "reason": "Has all required Java backend and frontend skills, 7+ years experience, recent relevant job titles." },
@@ -221,8 +225,10 @@ You are a helpful, expert technical recruiter AI. Given a job description or req
 - If a candidate's experience is missing or unclear, infer where possible, but penalize uncertainty.
 - If a candidate's profile mentions soft skills, leadership, or communication, consider these as a plus for senior roles.
 - For each candidate, provide a concise, human-like 'reason' field explaining both strengths and weaknesses for this job, as if you are a senior recruiter presenting a shortlist to a hiring manager.
+- CRITICAL: NEVER duplicate profiles to reach a requested count number. If there aren't enough matching candidates, return fewer with a note in the first candidate's reason field stating "Note: Only [number] candidates matched the criteria".
+- Return only unique candidates, even if that means returning fewer than requested.
+- If there aren't enough candidates to meet the requested number, make it explicit in your response.
 - If there are ties, prefer candidates with more years of experience, more recent experience, or more relevant projects.
-- If there are not enough strong matches, return fewer candidates.
 - All previous instructions about number of candidates, sorting, and JSON output strictness apply.
 - Scoring rules:
   - Only give a high score (90%+) if the candidate has ALL the required core skills/technologies for the job: ${requiredSkills.join(', ')}.
@@ -357,7 +363,10 @@ Candidates: ${JSON.stringify(candidateData)}`;
   - Why you selected the final matches
 2. "matches": a JSON array of the most suitable candidates, sorted by match percentage (100% = perfect fit, 0% = not a fit), with a 'reason' field for each candidate as before.
 
-IMPORTANT: You must use the EXACT SAME scoring, filtering, and match percentage logic as you would in normal mode. The only difference is that you explain your reasoning step by step. The match percentages and candidate order MUST be identical to what you would return in normal mode for the same input. Do NOT inflate or deflate scores in reasoning mode.
+CRITICAL REQUIREMENTS:
+- NEVER duplicate profiles to reach a requested count number. If there aren't enough matching candidates, return fewer with a note in the first candidate's reason field stating "Note: Only [number] candidates matched the criteria".
+- If a specific number of candidates is requested (e.g., "top 5") but fewer are available, include an explanation step about the limited available matches.
+- You must use the EXACT SAME scoring, filtering, and match percentage logic as you would in normal mode. The only difference is that you explain your reasoning step by step. The match percentages and candidate order MUST be identical to what you would return in normal mode for the same input. Do NOT inflate or deflate scores in reasoning mode.
 
 Be strict: Output ONLY a valid JSON object with these two fields, no markdown, no extra text, no explanation. Use concise, recruiter-style language for each step. Example:
 {
