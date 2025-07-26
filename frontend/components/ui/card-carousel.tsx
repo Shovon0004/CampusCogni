@@ -221,7 +221,11 @@ export const CardCarousel: React.FC<CardCarouselProps> = ({
                             subtitle={matchText}
                             description={candidate.summary || ""}
                             features={candidateFeatures}
-                            education={candidate.education || ""}
+                            education={typeof candidate.education === 'object' ? 
+                              (candidate.education?.college ? 
+                                `${candidate.education.college}${candidate.education.course ? ` - ${candidate.education.course}` : ''}` : 
+                                "No education details") : 
+                              (candidate.education || "")}
                             experience={candidate.experience || ""}
                             location={candidate.location || ""}
                             extraInfo={candidate.interests ? [`Interests: ${candidate.interests}`] : []}

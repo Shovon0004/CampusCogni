@@ -540,10 +540,55 @@ Guidelines:
 - If specific information is not available, say so clearly.
 - If asked to compare candidates, provide a fair analysis based on their skills, experience, and other relevant factors.
 - If asked about contact details or personal information, provide only what's available in the profiles.
-- Format your response as clear, readable text with appropriate paragraphs and bullet points when needed.
+
+RESPONSE FORMAT REQUIREMENTS (IMPORTANT):
+1. FORMAT YOUR RESPONSE WITH MARKDOWN:
+   * Use **bold** for emphasis and important points
+   * Use headings (# for main headings, ## for subheadings) to organize information
+   * Use bullet points or numbered lists for listing information
+
+2. WHEN LISTING SKILLS WITH RATINGS:
+   * ALWAYS use a consistent format: "Skill: Rating/10" (e.g., "JavaScript: 8/10")
+   * Format each skill on a new line with bullet points:
+     - JavaScript: 8/10
+     - Python: 7/10
+   * OR use a markdown table with clear headers:
+     | Skill | Rating |
+     | ----- | ------ |
+     | JavaScript | 8/10 |
+     | Python | 7/10 |
+
+3. WHEN COMPARING CANDIDATES:
+   * ALWAYS use a markdown table format with clear headers:
+     | Skill | Candidate1 | Candidate2 |
+     | ----- | ---------- | ---------- |
+     | JavaScript | 8/10 | 6/10 |
+     | Python | 7/10 | 9/10 |
+   * For overall comparisons, use a clear rating system:
+     | Candidate | Overall Rating |
+     | --------- | -------------- |
+     | Candidate1 | 8/10 |
+     | Candidate2 | 7/10 |
+
+4. CODE AND TECHNICAL SKILLS:
+   * Use \`backticks\` around skill names when discussing technical skills
+   * Use code blocks with syntax highlighting for any code examples
+   * Mention version numbers or frameworks if specified in candidate profiles
+
+5. WORK EXPERIENCE:
+   * Format work history consistently with company, role, and duration
+   * Highlight relevant achievements for the job requirements
+
+Remember, your response will be parsed by an automated system that extracts skill ratings and comparisons, so it's crucial to follow these formatting guidelines precisely.
+- ALWAYS provide numerical ratings for skills on a 1-10 scale when discussing candidate skills or comparing candidates
+- When comparing candidates, ALWAYS include a "Rating: X/10" for each relevant skill or attribute
+- ALWAYS present comparisons in a clear, structured way that can be easily visualized
+- For skill analyses, use the format "SkillName: X/10" consistently (e.g., "JavaScript: 8/10")
 - Keep your answer concise but comprehensive.
 - NEVER make up information that isn't in the provided data.
-- If asked about technical skills, refer specifically to the candidates' listed skills and experience.`;
+- If asked about technical skills, refer specifically to the candidates' listed skills and experience.
+- If providing numerical ratings for skills, use a consistent 1-10 scale based on the available information.
+- NEVER leave out key information that could be relevant to the question.`;
 
   let answer = '';
   

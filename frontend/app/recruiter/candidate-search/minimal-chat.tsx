@@ -9,6 +9,10 @@ import TypewriterEffect from "@/components/typewriter-effect";
 import SkillBar from "@/components/skill-bar";
 import ComparisonCard from "@/components/comparison-card";
 import { apiClient } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import "../../../app/recruiter/candidate-search/minimal-chat.css";
 
 interface Message {
@@ -44,7 +48,12 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      // Using a slight delay to ensure elements are rendered before scrolling
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
   }, [messages]);
 
   // Helper function to detect comparison requests
@@ -69,6 +78,458 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
     return skillKeywords.some(keyword => 
       text.toLowerCase().includes(keyword.toLowerCase())
     );
+  };
+  
+  // Helper function to extract skill ratings from AI text response
+  const extractSkillRatings = (text: string): Record<string, number> | null => {
+    try {
+      // Common programming skills to look for (improves accuracy)
+      const commonSkills = [
+        "JavaScript", "TypeScript", "Python", "Java", "C#", "C\\+\\+", "Ruby", "PHP", "Swift", "Kotlin", 
+        "Go", "Rust", "SQL", "HTML", "CSS", "React", "Angular", "Vue", "Node.js", "Express", "Django",
+        "Flask", "Spring", "ASP.NET", "Laravel", "Rails", "Docker", "Kubernetes", "AWS", "Azure", "GCP",
+        "Git", "CI/CD", "DevOps", "Machine Learning", "AI", "Data Science", "Blockchain", "Frontend", 
+        "Backend", "Fullstack", "Mobile", "iOS", "Android", "Cloud", "Testing", "UI/UX", "Design", 
+        "GraphQL", "MongoDB", "Redis", "WebSockets", "REST API", "Microservices", "TDD", "Agile", "Scrum"
+      ];
+      
+      const skills: Record<string, number> = {};
+      
+      // First, try to detect markdown tables which are the most reliable source
+      const tableRows = text.split('\n').filter(line => line.includes('|'));
+      
+      if (tableRows.length > 2) {  // Need at least header, separator, and one data row
+        console.log("Found potential markdown table format in AI response");
+        
+        // Skip the header and separator rows
+        const dataRows = tableRows.slice(2);
+        
+        for (const row of dataRows) {
+          const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
+          
+          if (cells.length >= 2) {
+            const skillName = cells[0].replace(/[`*]/g, '').trim();
+            const ratingCell = cells[1];
+            
+            // Look for rating patterns like 8/10 or just 8
+            const ratingMatch = ratingCell.match(/(\d+)(?:\s*\/\s*(\d+))?/);
+            
+            if (ratingMatch && skillName.length > 1) {
+              const rating = parseInt(ratingMatch[1], 10);
+              const maxRating = ratingMatch[2] ? parseInt(ratingMatch[2], 10) : 10;
+              
+              // Normalize to a scale of 10
+              let normalizedRating = (rating / maxRating) * 10;
+              normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+              
+              if (normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
+                skills[skillName] = normalizedRating;
+              }
+            } else if (skillName.length > 1) {
+              // Check for word-based ratings
+              const wordRatings = [
+                { words: ['excellent', 'outstanding', 'exceptional', 'expert', 'mastery'], value: 9.5 },
+                { words: ['very good', 'strong', 'proficient', 'advanced'], value: 8.5 },
+                { words: ['good', 'solid', 'competent', 'capable'], value: 7.5 },
+                { words: ['fair', 'moderate', 'intermediate', 'average'], value: 6.5 },
+                { words: ['basic', 'beginner', 'elementary', 'limited'], value: 5.0 },
+                { words: ['poor', 'weak', 'minimal', 'novice'], value: 3.5 }
+              ];
+              
+              for (const { words, value } of wordRatings) {
+                if (words.some(word => ratingCell.toLowerCase().includes(word))) {
+                  skills[skillName] = value;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // If no skills were extracted from tables or not enough, try regex patterns
+      if (Object.keys(skills).length < 3) {
+        // Stronger pattern for skill rating extraction (prioritizes markdown formats like `JavaScript`: 8/10)
+        const patternTypes = [
+          // Markdown style with backticks: `JavaScript`: 9/10
+          new RegExp(`\`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\`\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+          
+          // Bold style with asterisks: **JavaScript**: 9/10
+          new RegExp(`\\*\\*(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\*\\*\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+          
+          // List item with rating: - JavaScript: 9/10 or * JavaScript: 9/10
+          new RegExp(`(?:^|\\n)\\s*[\\-\\*•]\\s*(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gim'),
+          
+          // Standard format: JavaScript: 9/10
+          new RegExp(`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi')
+        ];
+        
+        // Try each pattern type in priority order
+        for (const regex of patternTypes) {
+          const matches = [...text.matchAll(regex)];
+          
+          matches.forEach(match => {
+            const skillName = match[1].trim().replace(/[`*]/g, '');  // Remove any markdown symbols
+            
+            // Skip non-skill words
+            const nonSkillWords = ['rating', 'score', 'overall', 'total', 'average', 'summary', 'conclusion'];
+            if (nonSkillWords.some(word => skillName.toLowerCase().includes(word))) return;
+            
+            const rating = parseInt(match[2], 10);
+            const maxRating = match[3] ? parseInt(match[3], 10) : 10;
+            
+            // Normalize to a scale of 10
+            let normalizedRating = (rating / maxRating) * 10;
+            normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+            
+            // Only include if it looks like a valid skill and not already added
+            if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
+              skills[skillName] = normalizedRating;
+            }
+          });
+        }
+        
+        // Look for skills with ratings in parentheses: JavaScript (8/10)
+        const parenthesisPattern = new RegExp(`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*\\((\\d+)(?:\\s*\\/\\s*(\\d+))?\\)`, 'gi');
+        const parenthesisMatches = [...text.matchAll(parenthesisPattern)];
+        
+        parenthesisMatches.forEach(match => {
+          const skillName = match[1].trim();
+          const rating = parseInt(match[2], 10);
+          const maxRating = match[3] ? parseInt(match[3], 10) : 10;
+          
+          // Normalize to a scale of 10
+          let normalizedRating = (rating / maxRating) * 10;
+          normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+          
+          if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
+            skills[skillName] = normalizedRating;
+          }
+        });
+        
+        // Secondary check for skills mentioned in the text with rating nearby
+        for (const skill of commonSkills) {
+          if (!skills[skill]) {
+            const skillRegexes = [
+              new RegExp(`${skill}[^.]*?(\\d+)\\s*\\/\\s*10`, 'i'),
+              new RegExp(`${skill}[^.]*?rated\\s*(?:at)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
+              new RegExp(`${skill}[^.]*?score\\s*(?:of)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
+            ];
+            
+            for (const regex of skillRegexes) {
+              const match = text.match(regex);
+              if (match) {
+                const rating = parseInt(match[1], 10);
+                const maxRating = match[2] ? parseInt(match[2], 10) : 10;
+                
+                // Normalize to a scale of 10
+                let normalizedRating = (rating / maxRating) * 10;
+                normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+                
+                skills[skill] = normalizedRating;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Look for word-based ratings like "Expert in JavaScript"
+        const wordRatings = [
+          { words: ['excellent', 'outstanding', 'exceptional', 'expert', 'mastery'], value: 9.5 },
+          { words: ['very good', 'strong', 'proficient', 'advanced'], value: 8.5 },
+          { words: ['good', 'solid', 'competent', 'capable'], value: 7.5 },
+          { words: ['fair', 'moderate', 'intermediate', 'average'], value: 6.5 },
+          { words: ['basic', 'beginner', 'elementary', 'limited'], value: 5.0 },
+          { words: ['poor', 'weak', 'minimal', 'novice'], value: 3.5 }
+        ];
+        
+        for (const skill of commonSkills) {
+          if (!skills[skill]) {
+            for (const { words, value } of wordRatings) {
+              for (const word of words) {
+                // Check patterns like "Expert in JavaScript" or "JavaScript: Expert"
+                const patternBefore = new RegExp(`${word}\\s+(?:in|with|at)\\s+${skill}`, 'i');
+                const patternAfter = new RegExp(`${skill}\\s*(?::|-)\\s*${word}`, 'i');
+                
+                if (patternBefore.test(text) || patternAfter.test(text)) {
+                  skills[skill] = value;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Console log found skills for debugging
+      if (Object.keys(skills).length > 0) {
+        console.log("Extracted skills:", skills);
+      }
+      
+      return Object.keys(skills).length > 0 ? skills : null;
+    } catch (error) {
+      console.error("Error extracting skill ratings:", error);
+      return null;
+    }
+  };
+  
+  // Define interfaces for comparison data
+  interface CandidateScore {
+    name: string;
+    score: number;
+  }
+  
+  interface SkillComparison {
+    skill: string;
+    candidates: CandidateScore[];
+  }
+  
+  interface ComparisonData {
+    overall: CandidateScore[];
+    skills: SkillComparison[];
+    experience: CandidateScore[];
+  }
+
+  // Helper function to extract comparison data from AI text response
+  const extractComparisonData = (text: string, candidateNames: string[]): ComparisonData | null => {
+    try {
+      if (candidateNames.length < 2) return null;
+      
+      const comparisonData: ComparisonData = {
+        overall: [],
+        skills: [],
+        experience: []
+      };
+      
+      // First, try to extract data from tables which are the most reliable format
+      // Look for markdown tables with candidate names
+      const tablePattern = /\|([^|]+)\|([^|]+)\|(?:[^|]+\|)*/g;
+      const tableCells = [...text.matchAll(tablePattern)];
+      
+      if (tableCells.length > 0) {
+        console.log("Found table format in AI response");
+        
+        // Get all skill names from table headers
+        const skillNames: string[] = [];
+        
+        // Try to extract table data for each candidate
+        const candidateScores: Record<string, Record<string, number>> = {};
+        
+        // Initialize candidate scores
+        candidateNames.forEach(name => {
+          candidateScores[name] = {};
+        });
+        
+        // Process table cells
+        tableCells.forEach(match => {
+          const col1 = match[1].trim();
+          const col2 = match[2].trim();
+          
+          // Check if col1 is a candidate name and col2 has a rating
+          const candidateInCol1 = candidateNames.find(name => 
+            col1.toLowerCase().includes(name.toLowerCase())
+          );
+          
+          if (candidateInCol1) {
+            const ratingMatch = col2.match(/(\d+)(?:\s*\/\s*(\d+))?/);
+            if (ratingMatch) {
+              const rating = parseInt(ratingMatch[1], 10);
+              const maxRating = ratingMatch[2] ? parseInt(ratingMatch[2], 10) : 10;
+              const normalizedRating = (rating / maxRating) * 10;
+              
+              // This seems to be an overall rating
+              comparisonData.overall.push({
+                name: candidateInCol1,
+                score: normalizedRating
+              });
+            }
+          }
+          
+          // Check if col1 is a skill and col2 has a candidate name and rating
+          const skillNameMatch = col1.match(/^([A-Za-z0-9\s+#.\-_/]+)$/);
+          if (skillNameMatch) {
+            const potentialSkill = skillNameMatch[1].trim();
+            
+            // Check if this matches any candidate rating pattern
+            candidateNames.forEach(name => {
+              const candidateRatingPattern = new RegExp(`${name}[^0-9]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i');
+              const match = col2.match(candidateRatingPattern);
+              
+              if (match) {
+                if (!skillNames.includes(potentialSkill)) {
+                  skillNames.push(potentialSkill);
+                }
+                
+                const rating = parseInt(match[1], 10);
+                const maxRating = match[2] ? parseInt(match[2], 10) : 10;
+                const normalizedRating = (rating / maxRating) * 10;
+                
+                candidateScores[name][potentialSkill] = normalizedRating;
+              }
+            });
+          }
+        });
+        
+        // Process skill comparisons from the table data
+        skillNames.forEach(skill => {
+          const candidates = candidateNames
+            .filter(name => candidateScores[name][skill] !== undefined)
+            .map(name => ({
+              name,
+              score: candidateScores[name][skill]
+            }));
+            
+          if (candidates.length >= 2) {
+            comparisonData.skills.push({
+              skill,
+              candidates
+            });
+          }
+        });
+      }
+      
+      // If tables didn't yield enough data, try individual rating extraction
+      if (comparisonData.overall.length < 2) {
+        console.log("Falling back to text-based rating extraction");
+        
+        // For each candidate, try to find overall ratings in the text
+        candidateNames.forEach(name => {
+          if (!comparisonData.overall.find(item => item.name === name)) {
+            // Look for patterns like "John: 8/10" or "John - 7" or "John scored 8 out of 10"
+            const ratingPatterns = [
+              new RegExp(`${name}\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
+              new RegExp(`${name}[^.]*?(?:rated|scored|rating|score)\\s*(?:of|is|was)?\\s*(\\d+)(?:\\s*(?:out\\s*of|\\/)\\s*(\\d+))?`, 'i'),
+              new RegExp(`${name}[^.]*?(?:overall|rating|score):\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
+            ];
+            
+            let matched = false;
+            for (const pattern of ratingPatterns) {
+              if (matched) break;
+              
+              const match = text.match(pattern);
+              if (match) {
+                const rating = parseInt(match[1], 10);
+                const maxRating = match[2] ? parseInt(match[2], 10) : 10;
+                const normalizedRating = (rating / maxRating) * 10;
+                
+                comparisonData.overall.push({
+                  name,
+                  score: normalizedRating
+                });
+                matched = true;
+              }
+            }
+            
+            // If still not matched, look for sentiment indicators
+            if (!matched) {
+              // Look for positive or negative sentiments
+              const positiveIndicators = [
+                `${name} is better`, 
+                `${name} has stronger`,
+                `${name} excels`,
+                `${name} outperforms`,
+                `${name} stands out`,
+                `strongest candidate`,
+                `most qualified`
+              ];
+              
+              const negativeIndicators = [
+                `${name} is weaker`,
+                `${name} lacks`,
+                `${name} has less`,
+                `${name} falls short`,
+                `less qualified`
+              ];
+              
+              const positiveSentiment = positiveIndicators.some(indicator => 
+                text.toLowerCase().includes(indicator.toLowerCase())
+              );
+              
+              const negativeSentiment = negativeIndicators.some(indicator => 
+                text.toLowerCase().includes(indicator.toLowerCase())
+              );
+              
+              if (positiveSentiment) {
+                comparisonData.overall.push({
+                  name,
+                  score: 8.5 // Higher score for positive sentiment
+                });
+              } else if (negativeSentiment) {
+                comparisonData.overall.push({
+                  name,
+                  score: 6.5 // Lower score for negative sentiment
+                });
+              }
+            }
+          }
+        });
+      }
+      
+      // Extract skill-specific comparisons if not already found from tables
+      if (comparisonData.skills.length === 0) {
+        // Common skills to look for
+        const commonSkills = [
+          "JavaScript", "TypeScript", "Python", "Java", "C#", "C++", "Ruby", "PHP", 
+          "React", "Angular", "Vue", "Node.js", "Frontend", "Backend", "DevOps",
+          "Database", "SQL", "AWS", "Azure", "GCP", "Cloud", "Docker", "Kubernetes"
+        ];
+        
+        // For each common skill, check if it's mentioned with candidates
+        commonSkills.forEach(skill => {
+          const skillMention = text.indexOf(skill);
+          
+          if (skillMention >= 0) {
+            // Extract the surrounding text
+            const surroundingText = text.substring(
+              Math.max(0, skillMention - 100), 
+              Math.min(text.length, skillMention + 100)
+            );
+            
+            // Look for candidate mentions in this section
+            const candidatesWithRatings = [];
+            
+            for (const name of candidateNames) {
+              if (surroundingText.includes(name)) {
+                // Try to find a rating for this candidate and skill
+                const ratingPattern = new RegExp(`${name}[^.]*?${skill}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?|${skill}[^.]*?${name}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i');
+                const match = surroundingText.match(ratingPattern);
+                
+                if (match) {
+                  const rating = parseInt(match[1] || match[3], 10);
+                  const maxRating = match[2] || match[4] ? parseInt(match[2] || match[4], 10) : 10;
+                  const normalizedRating = (rating / maxRating) * 10;
+                  
+                  candidatesWithRatings.push({
+                    name,
+                    score: normalizedRating
+                  });
+                }
+              }
+            }
+            
+            if (candidatesWithRatings.length >= 2) {
+              comparisonData.skills.push({
+                skill,
+                candidates: candidatesWithRatings
+              });
+            }
+          }
+        });
+      }
+      
+      // If we have enough data, return it
+      const hasData = comparisonData.overall.length >= 2 || comparisonData.skills.length > 0;
+      
+      // Log the extracted comparison data
+      if (hasData) {
+        console.log("Extracted comparison data:", comparisonData);
+      }
+      
+      return hasData ? comparisonData : null;
+    } catch (error) {
+      console.error("Error extracting comparison data:", error);
+      return null;
+    }
   };
 
   const handleSendMessage = async () => {
@@ -114,88 +575,243 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       // Remove the typing message
       setMessages(prev => prev.filter(msg => !msg.isTyping));
 
-      // Process the response based on the type of query
+      // Process the response based on the type of query and actual content
+      const answer = response.answer || "Based on the profiles of the selected candidates, I don't have enough information to provide a detailed answer.";
+      const candidateNames = selectedCandidates.map(c => c.name || `Candidate ${c.id || ""}`);
+      
+      // Always try to intelligently extract data from the AI response first
+      const extractedSkills = extractSkillRatings(answer);
+      const extractedComparison = extractComparisonData(answer, candidateNames);
+      
+      // Check if we have structured data from the API
+      const hasApiComparisonData = response.comparison && 
+        (response.comparison.skills?.length > 0 || 
+         response.comparison.experience?.length > 0 || 
+         response.comparison.overall?.length > 0);
+         
+      const hasApiSkillsData = response.skills && Object.keys(response.skills).length > 0;
+      
       if (isComparisonRequest(userQuery) && selectedCandidates.length > 1) {
-        // For comparison requests with visualization, we need to parse the response
-        // Try to extract comparison data from the answer, if possible
-        try {
-          // First, handle the case where we might get comparison data directly in the response
-          if (response.comparison) {
-            const comparisonData = response.comparison || {};
-            
-            setMessages(prev => [
-              ...prev, 
-              {
-                role: "assistant",
-                content: response.summary || "Here's a comparison of the selected candidates:",
-                visualData: {
-                  type: "comparison",
-                  data: {
-                    skills: comparisonData.skills || [],
-                    experience: comparisonData.experience || [],
-                    education: comparisonData.education || [],
-                    overall: comparisonData.overall || []
-                  }
-                }
-              }
-            ]);
-          } else {
-            // If no structured comparison data, just display the text answer
-            setMessages(prev => [
-              ...prev, 
-              {
-                role: "assistant",
-                content: response.answer || "Based on my analysis of the selected candidates:"
-              }
-            ]);
-          }
-        } catch (parseError) {
-          // If we can't extract comparison data, just show the text answer
-          setMessages(prev => [
-            ...prev, 
-            {
-              role: "assistant",
-              content: response.answer || "Based on my analysis of the selected candidates:"
-            }
-          ]);
-        }
-      } 
-      else if (isSkillAnalysisRequest(userQuery)) {
-        // For skill analysis requests, add skill visualization if available
-        if (response.skills) {
-          const skillsData = response.skills || {};
+        if (hasApiComparisonData) {
+          // If API provided structured comparison data, use it directly
+          const comparisonData = response.comparison;
           
           setMessages(prev => [
             ...prev, 
             {
               role: "assistant",
-              content: response.answer || "Here's an analysis of the candidate's skills:",
+              content: response.summary || answer,
               visualData: {
-                type: "skills",
-                data: skillsData
+                type: "comparison",
+                data: {
+                  skills: comparisonData.skills || [],
+                  experience: comparisonData.experience || [],
+                  education: comparisonData.education || [],
+                  overall: comparisonData.overall || []
+                }
               }
             }
           ]);
-        } else {
-          // Just show the text response if no structured skills data
+        }
+        else if (extractedComparison) {
+          // If we successfully extracted comparison data from the text response
           setMessages(prev => [
             ...prev, 
             {
               role: "assistant",
-              content: response.answer || "Based on my analysis of the candidate's skills:"
+              content: answer,
+              visualData: {
+                type: "comparison",
+                data: extractedComparison
+              }
+            }
+          ]);
+        }
+        else {
+          // No structured data, but it's still a comparison request
+          // Try to find mentions of candidates in the response and create basic comparison
+          const mentionedCandidates = candidateNames.filter(name => 
+            answer.toLowerCase().includes(name.toLowerCase())
+          );
+          
+          if (mentionedCandidates.length >= 2) {
+            // Create a simple overall comparison
+            const comparisonData = {
+              overall: mentionedCandidates.map((name, index, array) => {
+                // Position in the response could indicate importance
+                const position = answer.toLowerCase().indexOf(name.toLowerCase());
+                // Earlier mentions often indicate stronger candidates
+                const score = 8 - (index * (3 / array.length));
+                
+                return {
+                  name,
+                  score: Math.max(5, Math.min(10, score)) // Keep between 5-10
+                };
+              })
+            };
+            
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer,
+                visualData: {
+                  type: "comparison",
+                  data: comparisonData
+                }
+              }
+            ]);
+          } else {
+            // Just show the text response
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer
+              }
+            ]);
+          }
+        }
+      } 
+      else if (isSkillAnalysisRequest(userQuery) || userQuery.toLowerCase().includes('rate') || userQuery.toLowerCase().includes('evaluation')) {
+        if (hasApiSkillsData) {
+          // Use API-provided skill data
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: answer,
+              visualData: {
+                type: "skills",
+                data: response.skills
+              }
+            }
+          ]);
+        }
+        else if (extractedSkills) {
+          // Use skills data extracted from the AI response text
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: answer,
+              visualData: {
+                type: "skills",
+                data: extractedSkills
+              }
+            }
+          ]);
+        }
+        else if (selectedCandidates.length === 1) {
+          // For a single candidate, try to get skills from their profile
+          const candidate = selectedCandidates[0];
+          const candidateSkills: Record<string, number> = {};
+          
+          // Check if candidate has skills in their profile
+          if (candidate.skills && Array.isArray(candidate.skills) && candidate.skills.length > 0) {
+            // Use actual skills from candidate profile
+            candidate.skills.forEach((skill: string) => {
+              // Look for this skill in the answer to find sentiment
+              const skillMention = answer.toLowerCase().indexOf(skill.toLowerCase());
+              
+              if (skillMention >= 0) {
+                // Look for nearby words that might indicate proficiency
+                const nearbyText = answer.substring(
+                  Math.max(0, skillMention - 20), 
+                  Math.min(answer.length, skillMention + skill.length + 20)
+                ).toLowerCase();
+                
+                let rating = 7; // Default middle rating
+                
+                // Adjust rating based on sentiment words
+                if (nearbyText.includes('expert') || nearbyText.includes('excellent') || 
+                    nearbyText.includes('advanced') || nearbyText.includes('proficient')) {
+                  rating = 9;
+                } else if (nearbyText.includes('good') || nearbyText.includes('strong')) {
+                  rating = 8;
+                } else if (nearbyText.includes('average') || nearbyText.includes('moderate')) {
+                  rating = 6;
+                } else if (nearbyText.includes('basic') || nearbyText.includes('beginner')) {
+                  rating = 5;
+                } else if (nearbyText.includes('weak') || nearbyText.includes('poor')) {
+                  rating = 4;
+                }
+                
+                candidateSkills[skill] = rating;
+              } else {
+                // Skill not mentioned in response, assign a neutral rating
+                candidateSkills[skill] = 6;
+              }
+            });
+            
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer,
+                visualData: {
+                  type: "skills",
+                  data: candidateSkills
+                }
+              }
+            ]);
+          } else {
+            // No skills data available, just show the text response
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer
+              }
+            ]);
+          }
+        } else {
+          // No visualization data available
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: answer
             }
           ]);
         }
       }
       else {
-        // For general queries, just show the answer
-        setMessages(prev => [
-          ...prev, 
-          {
-            role: "assistant",
-            content: response.answer || "Based on the profiles of the selected candidates, I can provide the following information."
+        // For any other type of question, check if the answer contains data that could be visualized
+        if (answer.includes('rating') || answer.includes('score') || answer.includes('/10')) {
+          // Try extracting skills or ratings
+          if (extractedSkills && Object.keys(extractedSkills).length >= 2) {
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer,
+                visualData: {
+                  type: "skills",
+                  data: extractedSkills
+                }
+              }
+            ]);
+          } else {
+            // Just show the text response
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: answer
+              }
+            ]);
           }
-        ]);
+        } else {
+          // Standard response without visualization for general queries
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: answer
+            }
+          ]);
+        }
       }
     } catch (error) {
       // Remove typing indicator if there was an error
@@ -250,7 +866,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
   };
 
   return (
-    <div className="minimal-chat-container bg-[#0D0D0D] dark:bg-[#0D0D0D] rounded-2xl p-1.5 pt-4 h-full flex flex-col">
+    <div className="minimal-chat-container bg-[#0D0D0D] dark:bg-[#0D0D0D] rounded-2xl p-1.5 pt-4 h-full flex flex-col overflow-hidden">
       <div className="flex items-center gap-2 mb-2.5 mx-3">
         <div className="flex-1 flex items-center gap-2">
           <Bot className="h-3.5 w-3.5 text-white/90" />
@@ -260,7 +876,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         </div>
       </div>
       
-      <div className="ai-conversation flex-1 overflow-y-auto mb-2 px-1.5">
+      <div className="ai-conversation flex-1 overflow-y-auto mb-2 px-1.5 scroll-container">
         {messages.map((message, index) => (
           <div 
             key={index} 
@@ -277,15 +893,35 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               </div>
             )}
             
-            {/* Message content with typewriter effect for assistant */}
-            <div className="text-sm">
+            {/* Message content with typewriter effect and markdown support for assistant */}
+            <div className="text-sm markdown-content">
               {message.role === 'assistant' && message.isTyping ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 text-white/70 animate-spin" />
                   <span className="text-white/70">typing...</span>
                 </div>
               ) : message.role === 'assistant' ? (
-                <TypewriterEffect text={message.content} delay={10} />
+                // Check if content has markdown patterns
+                message.content.includes('```') || 
+                message.content.includes('$') ||
+                message.content.includes('#') ||
+                message.content.includes('|') ||
+                (message.content.includes('*') && message.content.includes('*')) ? (
+                  // Content has markdown, use ReactMarkdown directly
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      p: ({node, ...props}) => <p className="whitespace-pre-wrap" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  // No markdown, use typewriter effect
+                  <TypewriterEffect text={message.content} delay={10} />
+                )
               ) : (
                 <p className="whitespace-pre-wrap">{message.content}</p>
               )}
