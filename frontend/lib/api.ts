@@ -199,11 +199,12 @@ class ApiClient {
     })
   }
   
-  // AI Candidate Comparison
+  // AI Candidate Comparison (using the Q&A endpoint since comparison endpoint doesn't exist)
   async compareCandidates(candidates: any[], prompt: string) {
-    return this.request('/ai-candidate-compare', {
+    // Use the Q&A endpoint with a comparison question
+    return this.request('/ai-candidate-qa', {
       method: 'POST',
-      body: JSON.stringify({ candidates, prompt }),
+      body: JSON.stringify({ candidates, question: prompt }),
     })
   }
   

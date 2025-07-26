@@ -8,8 +8,13 @@ const router: express.Router = express.Router();
 // Middleware to verify authentication
 router.use(authenticateToken);
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", async (req: AuthenticatedRequest, res: Response) => {
   try {
+    // Check if the user is authenticated properly
+    if (!req.user || !req.user.id) {
+      return res.status(403).json({ error: "Authentication required" });
+    }
+    
     const { candidates, question } = req.body;
     
     if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
@@ -20,13 +25,25 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Question is required" });
     }
     
+    // Log request for debugging
+    console.log(`Candidate Q&A request from user ${req.user.id}`, {
+      numCandidates: candidates.length,
+      questionLength: question.length
+    });
+    
     // Get answer from AI about candidates
     const { answer } = await getCandidateAnswers(candidates, question);
     
     res.json({ answer });
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI candidate Q&A error:", error);
-    res.status(500).json({ error: "Failed to process your question" });
+    
+    // Provide more specific error messages
+    if (error.response && error.response.status === 429) {
+      return res.status(429).json({ error: "Rate limit exceeded. Please try again later." });
+    }
+    
+    res.status(500).json({ error: "Failed to process your question. Please try again." });
   }
 });
 

@@ -25,13 +25,81 @@ interface GeminiResponse {
   candidates: GeminiCandidate[];
 }
 
-const GEMINI_API_KEY = process.env.SEARCH_CANDIDATE_API_KEY;
+// API key management
+// Define all available API keys in arrays for easy rotation
+const GEMINI_API_KEYS = [
+  process.env.SEARCH_CANDIDATE_API_KEY,
+  process.env.SEARCH_CANDIDATE_API_KEY_1,
+  process.env.SEARCH_CANDIDATE_API_KEY_2,
+  process.env.SEARCH_CANDIDATE_API_KEY_3,
+].filter(Boolean); // Filter out undefined or empty keys
+
+const GROQ_API_KEYS = [
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_1,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_2,
+  process.env.SEARCH_CANDIDATE_API_KEY_GROQ_3,
+].filter(Boolean);
+
+const CANDIDATE_INFO_API_KEYS = [
+  process.env.CANDIDATE_INFO_API_KEY,
+  process.env.CANDIDATE_INFO_API_KEY_1,
+  process.env.CANDIDATE_INFO_API_KEY_2,
+  process.env.CANDIDATE_INFO_API_KEY_3,
+].filter(Boolean);
+
+const CANDIDATE_INFO_API_KEYS_GROQ = [
+  process.env.CANDIDATE_INFO_API_KEY_GROQ,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_1,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_2,
+  process.env.CANDIDATE_INFO_API_KEY_GROQ_3,
+].filter(Boolean);
+
+// Keep track of the current index for each key type to rotate through
+let geminiKeyIndex = 0;
+let groqKeyIndex = 0;
+let candidateInfoKeyIndex = 0;
+let candidateInfoGroqKeyIndex = 0;
+
+// Functions to get the next available API key
+const getNextGeminiKey = () => {
+  if (GEMINI_API_KEYS.length === 0) return null;
+  const key = GEMINI_API_KEYS[geminiKeyIndex];
+  geminiKeyIndex = (geminiKeyIndex + 1) % GEMINI_API_KEYS.length;
+  return key;
+};
+
+const getNextGroqKey = () => {
+  if (GROQ_API_KEYS.length === 0) return null;
+  const key = GROQ_API_KEYS[groqKeyIndex];
+  groqKeyIndex = (groqKeyIndex + 1) % GROQ_API_KEYS.length;
+  return key;
+};
+
+const getNextCandidateInfoKey = () => {
+  if (CANDIDATE_INFO_API_KEYS.length === 0) return null;
+  const key = CANDIDATE_INFO_API_KEYS[candidateInfoKeyIndex];
+  candidateInfoKeyIndex = (candidateInfoKeyIndex + 1) % CANDIDATE_INFO_API_KEYS.length;
+  return key;
+};
+
+const getNextCandidateInfoGroqKey = () => {
+  if (CANDIDATE_INFO_API_KEYS_GROQ.length === 0) return null;
+  const key = CANDIDATE_INFO_API_KEYS_GROQ[candidateInfoGroqKeyIndex];
+  candidateInfoGroqKeyIndex = (candidateInfoGroqKeyIndex + 1) % CANDIDATE_INFO_API_KEYS_GROQ.length;
+  return key;
+};
+
+// Get current keys (initial values)
+const GEMINI_API_KEY = getNextGeminiKey();
+const CANDIDATE_INFO_API_KEY = getNextCandidateInfoKey();
+const CANDIDATE_INFO_API_KEY_GROQ = getNextCandidateInfoGroqKey();
+const SEARCH_CANDIDATE_API_KEY_GROQ = getNextGroqKey();
+
+// API URLs
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const CANDIDATE_INFO_API_KEY = process.env.CANDIDATE_INFO_API_KEY;
-const CANDIDATE_INFO_API_KEY_GROQ = process.env.CANDIDATE_INFO_API_KEY_GROQ;
 const GEMINI_SKILL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const GROQ_SKILL_URL = "https://api.groq.com/openai/v1/chat/completions";
-const SEARCH_CANDIDATE_API_KEY_GROQ = process.env.SEARCH_CANDIDATE_API_KEY_GROQ;
 const GROQ_CANDIDATE_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // AI-powered skill expansion (GROQ preferred, Gemini fallback)
@@ -479,59 +547,86 @@ Guidelines:
 
   let answer = '';
   
-  if (SEARCH_CANDIDATE_API_KEY_GROQ) {
-    // Use Groq for more capable responses
-    try {
-      const response = await axios.post(
-        GROQ_CANDIDATE_URL,
-        {
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: "You are a helpful assistant." },
-            { role: "user", content: systemPrompt }
-          ],
-          max_tokens: 2048,
-          temperature: 0.2
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${SEARCH_CANDIDATE_API_KEY_GROQ}`,
+  // Try Groq first with key rotation if needed
+  for (let attempt = 0; attempt < GROQ_API_KEYS.length && !answer; attempt++) {
+    const currentGroqKey = getNextGroqKey();
+    
+    if (currentGroqKey) {
+      try {
+        console.log(`Trying GROQ API key ${attempt + 1}/${GROQ_API_KEYS.length}`);
+        const response = await axios.post(
+          GROQ_CANDIDATE_URL,
+          {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: "You are a helpful assistant." },
+              { role: "user", content: systemPrompt }
+            ],
+            max_tokens: 2048,
+            temperature: 0.2
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${currentGroqKey}`,
+            }
           }
+        );
+        answer = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
+        if (answer) {
+          console.log("Successfully got response from GROQ");
+          break;
         }
-      );
-      answer = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
-    } catch (err) {
-      console.error("Groq candidate Q&A error, falling back to Gemini:", err);
+      } catch (err) {
+        console.error(`GROQ API key ${attempt + 1} failed:`, err);
+        // Continue to the next key
+      }
     }
   }
   
-  // Fallback to Gemini if Groq fails or is not available
-  if (!answer && GEMINI_API_KEY) {
-    try {
-      const response = await axios.post(
-        GEMINI_API_URL,
-        {
-          contents: [
+  // Fallback to Gemini with key rotation if needed
+  if (!answer) {
+    for (let attempt = 0; attempt < GEMINI_API_KEYS.length && !answer; attempt++) {
+      const currentGeminiKey = getNextGeminiKey();
+      
+      if (currentGeminiKey) {
+        try {
+          console.log(`Trying Gemini API key ${attempt + 1}/${GEMINI_API_KEYS.length}`);
+          const response = await axios.post(
+            GEMINI_API_URL,
             {
-              parts: [
-                { text: systemPrompt }
+              contents: [
+                {
+                  parts: [
+                    { text: systemPrompt }
+                  ]
+                }
               ]
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "X-goog-api-key": currentGeminiKey,
+              }
             }
-          ]
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-goog-api-key": GEMINI_API_KEY,
+          );
+          answer = (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (answer) {
+            console.log("Successfully got response from Gemini");
+            break;
           }
+        } catch (err) {
+          console.error(`Gemini API key ${attempt + 1} failed:`, err);
+          // Continue to the next key
         }
-      );
-      answer = (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text || "";
-    } catch (err) {
-      console.error("Gemini candidate Q&A error:", err);
-      answer = "I'm sorry, but I encountered an error while analyzing the candidate profiles. Please try again later.";
+      }
     }
+  }
+  
+  // If all API attempts failed
+  if (!answer) {
+    console.error("All API attempts failed for candidate Q&A");
+    answer = "I'm sorry, but I encountered an error while analyzing the candidate profiles. Please try again later.";
   }
   
   return { answer };

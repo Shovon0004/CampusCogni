@@ -74,6 +74,19 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
   const handleSendMessage = async () => {
     if (!value.trim() || isLoading || selectedCandidates.length === 0) return;
     
+    // Check if the user is logged in by checking for token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setMessages(prev => [
+        ...prev,
+        { role: "user" as const, content: value },
+        { role: "assistant", content: "You need to be logged in to use this feature. Please log in and try again." }
+      ]);
+      setValue("");
+      adjustHeight(true);
+      return;
+    }
+    
     // Add user message
     const userMessage = { role: "user" as const, content: value };
     setMessages(prev => [...prev, userMessage]);
@@ -94,55 +107,85 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       // Determine which API endpoint to use based on the query
       let response;
       
-      if (isComparisonRequest(userQuery) && selectedCandidates.length > 1) {
-        // Use comparison API for comparison requests with multiple candidates
-        response = await apiClient.compareCandidates(selectedCandidates, userQuery);
-      } else {
-        // Use general Q&A API for other queries
-        response = await apiClient.askAboutCandidates(selectedCandidates, userQuery);
-      }
+      // Always use the Q&A API since the comparison API endpoint doesn't exist
+      // This will handle both general questions and comparison questions
+      response = await apiClient.askAboutCandidates(selectedCandidates, userQuery);
 
       // Remove the typing message
       setMessages(prev => prev.filter(msg => !msg.isTyping));
 
       // Process the response based on the type of query
       if (isComparisonRequest(userQuery) && selectedCandidates.length > 1) {
-        // For comparison requests, add visualization data
-        const comparisonData = response.comparison || {};
-        
-        // Create a message with visual comparison data
-        setMessages(prev => [
-          ...prev, 
-          {
-            role: "assistant",
-            content: response.summary || "Here's a comparison of the selected candidates:",
-            visualData: {
-              type: "comparison",
-              data: {
-                skills: comparisonData.skills || [],
-                experience: comparisonData.experience || [],
-                education: comparisonData.education || [],
-                overall: comparisonData.overall || []
+        // For comparison requests with visualization, we need to parse the response
+        // Try to extract comparison data from the answer, if possible
+        try {
+          // First, handle the case where we might get comparison data directly in the response
+          if (response.comparison) {
+            const comparisonData = response.comparison || {};
+            
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: response.summary || "Here's a comparison of the selected candidates:",
+                visualData: {
+                  type: "comparison",
+                  data: {
+                    skills: comparisonData.skills || [],
+                    experience: comparisonData.experience || [],
+                    education: comparisonData.education || [],
+                    overall: comparisonData.overall || []
+                  }
+                }
               }
-            }
+            ]);
+          } else {
+            // If no structured comparison data, just display the text answer
+            setMessages(prev => [
+              ...prev, 
+              {
+                role: "assistant",
+                content: response.answer || "Based on my analysis of the selected candidates:"
+              }
+            ]);
           }
-        ]);
+        } catch (parseError) {
+          // If we can't extract comparison data, just show the text answer
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: response.answer || "Based on my analysis of the selected candidates:"
+            }
+          ]);
+        }
       } 
       else if (isSkillAnalysisRequest(userQuery)) {
-        // For skill analysis requests, add skill visualization
-        const skillsData = response.skills || {};
-        
-        setMessages(prev => [
-          ...prev, 
-          {
-            role: "assistant",
-            content: response.answer || "Here's an analysis of the candidate's skills:",
-            visualData: {
-              type: "skills",
-              data: skillsData
+        // For skill analysis requests, add skill visualization if available
+        if (response.skills) {
+          const skillsData = response.skills || {};
+          
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: response.answer || "Here's an analysis of the candidate's skills:",
+              visualData: {
+                type: "skills",
+                data: skillsData
+              }
             }
-          }
-        ]);
+          ]);
+        } else {
+          // Just show the text response if no structured skills data
+          setMessages(prev => [
+            ...prev, 
+            {
+              role: "assistant",
+              content: response.answer || "Based on my analysis of the candidate's skills:"
+            }
+          ]);
+        }
       }
       else {
         // For general queries, just show the answer
@@ -158,10 +201,42 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       // Remove typing indicator if there was an error
       setMessages(prev => prev.filter(msg => !msg.isTyping));
       
-      setMessages(prev => [
-        ...prev, 
-        { role: "assistant", content: "Sorry, I encountered an error processing your request. Please try again." }
-      ]);
+      // Create a more informative error message
+      const errorMessage = error instanceof Error 
+        ? `Error: ${error.message}` 
+        : "Unknown error occurred";
+      
+      console.error("AI Chat Error:", error);
+      
+      // Handle authentication errors specifically
+      if (errorMessage.includes("Invalid or expired token")) {
+        // Clear token and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        
+        setMessages(prev => [
+          ...prev, 
+          { 
+            role: "assistant", 
+            content: "Your session has expired. Please log in again to continue using this feature."
+          }
+        ]);
+        
+        // Optional: Redirect to login page after a short delay
+        setTimeout(() => {
+          window.location.href = '/auth';
+        }, 2000);
+      } else {
+        // For other errors
+        setMessages(prev => [
+          ...prev, 
+          { 
+            role: "assistant", 
+            content: "Sorry, I encountered an error processing your request. Please try again. " + 
+              (process.env.NODE_ENV === 'development' ? `(${errorMessage})` : "")
+          }
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
