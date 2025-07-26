@@ -1,0 +1,58 @@
+.swiper-slide {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  height: 420px !important; /* Adjust based on CardFlip height + padding */
+}
+
+.card-wrapper {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fix for CardFlip component */
+.card-wrapper > .card-flip-container > div {
+  width: 280px !important;
+  height: 340px !important;
+  max-width: 280px !important;
+  margin: 0 auto !important;
+}
+
+/* Fix perspective issues */
+.card-wrapper .card-flip-container [perspective] {
+  perspective: 2000px !important;
+}
+
+/* Fix selection styles */
+.card-wrapper.ring-2 {
+  border-radius: 16px;
+  padding: 8px;
+}
+
+/* Custom styling for navigation arrows */
+.candidate-swiper .swiper-button-next,
+.candidate-swiper .swiper-button-prev {
+  width: 36px;
+  height: 36px;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  color: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.candidate-swiper .swiper-button-next:hover,
+.candidate-swiper .swiper-button-prev:hover {
+  background-color: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.candidate-swiper .swiper-button-next:after,
+.candidate-swiper .swiper-button-prev:after {
+  font-size: 14px;
+  font-weight: bold;
+}

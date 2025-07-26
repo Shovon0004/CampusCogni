@@ -1,0 +1,97 @@
+/* Styles for improved AI Question Answer component */
+.ai-chat-container {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.ai-chat-header {
+  background: linear-gradient(to right, rgba(255, 63, 23, 0.15), rgba(255, 63, 23, 0.05));
+  padding: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .ai-chat-header {
+  background: linear-gradient(to right, rgba(255, 63, 23, 0.25), rgba(255, 63, 23, 0.1));
+}
+
+.ai-chat-message {
+  margin-bottom: 0.75rem;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.ai-chat-message.assistant {
+  background-color: rgba(241, 245, 249, 0.6);
+}
+
+.dark .ai-chat-message.assistant {
+  background-color: rgba(30, 41, 59, 0.4);
+}
+
+.ai-chat-input-container {
+  padding: 0.75rem;
+  background-color: rgba(241, 245, 249, 0.4);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .ai-chat-input-container {
+  background-color: rgba(30, 41, 59, 0.2);
+}
+
+.ai-chat-textarea {
+  border-radius: 12px;
+  resize: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.75rem 3rem 0.75rem 0.75rem;
+  width: 100%;
+  min-height: 48px;
+  max-height: 120px;
+}
+
+.dark .ai-chat-textarea {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(30, 41, 59, 0.8);
+}
+
+.ai-chat-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 63, 23, 0.3);
+  box-shadow: 0 0 0 2px rgba(255, 63, 23, 0.15);
+}
+
+.ai-chat-send-button {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.ai-chat-send-button.active {
+  background-color: #ff3f17;
+  color: white;
+}
+
+.ai-chat-send-button.active:hover {
+  background-color: #e63812;
+  transform: scale(1.05);
+}
+
+.ai-chat-send-button.inactive {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.dark .ai-chat-send-button.inactive {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+}

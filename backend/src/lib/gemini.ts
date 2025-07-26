@@ -457,4 +457,84 @@ Candidates: ${JSON.stringify(candidateData)}`;
   return { matches, suggested: suggestedCandidates, reasoningSteps };
 }
 
+// Function to get answers to questions about candidates
+export async function getCandidateAnswers(candidates: any[], question: string) {
+  // Build a detailed system prompt that explains the candidate data
+  const systemPrompt = `You are an AI assistant helping recruiters understand candidate profiles. Answer questions about the candidates provided. Be accurate, helpful, and concise.
+
+The question is: "${question}"
+
+The candidate data includes:
+${candidates.map((c, i) => `Candidate ${i+1}: ${JSON.stringify(c, null, 2)}`).join('\n\n')}
+
+Guidelines:
+- Answer based ONLY on the information in the candidate profiles.
+- If specific information is not available, say so clearly.
+- If asked to compare candidates, provide a fair analysis based on their skills, experience, and other relevant factors.
+- If asked about contact details or personal information, provide only what's available in the profiles.
+- Format your response as clear, readable text with appropriate paragraphs and bullet points when needed.
+- Keep your answer concise but comprehensive.
+- NEVER make up information that isn't in the provided data.
+- If asked about technical skills, refer specifically to the candidates' listed skills and experience.`;
+
+  let answer = '';
+  
+  if (SEARCH_CANDIDATE_API_KEY_GROQ) {
+    // Use Groq for more capable responses
+    try {
+      const response = await axios.post(
+        GROQ_CANDIDATE_URL,
+        {
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: "You are a helpful assistant." },
+            { role: "user", content: systemPrompt }
+          ],
+          max_tokens: 2048,
+          temperature: 0.2
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SEARCH_CANDIDATE_API_KEY_GROQ}`,
+          }
+        }
+      );
+      answer = (response.data as GroqResponse).choices?.[0]?.message?.content || "";
+    } catch (err) {
+      console.error("Groq candidate Q&A error, falling back to Gemini:", err);
+    }
+  }
+  
+  // Fallback to Gemini if Groq fails or is not available
+  if (!answer && GEMINI_API_KEY) {
+    try {
+      const response = await axios.post(
+        GEMINI_API_URL,
+        {
+          contents: [
+            {
+              parts: [
+                { text: systemPrompt }
+              ]
+            }
+          ]
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "X-goog-api-key": GEMINI_API_KEY,
+          }
+        }
+      );
+      answer = (response.data as GeminiResponse).candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } catch (err) {
+      console.error("Gemini candidate Q&A error:", err);
+      answer = "I'm sorry, but I encountered an error while analyzing the candidate profiles. Please try again later.";
+    }
+  }
+  
+  return { answer };
+}
+
 export { getExpandedSkills }; 

@@ -198,6 +198,22 @@ class ApiClient {
       body: JSON.stringify({ candidate, prompt }),
     })
   }
+  
+  // AI Candidate Comparison
+  async compareCandidates(candidates: any[], prompt: string) {
+    return this.request('/ai-candidate-compare', {
+      method: 'POST',
+      body: JSON.stringify({ candidates, prompt }),
+    })
+  }
+  
+  // Ask questions about candidates
+  async askAboutCandidates(candidates: any[], question: string) {
+    return this.request('/ai-candidate-qa', {
+      method: 'POST',
+      body: JSON.stringify({ candidates, question }),
+    })
+  }
 
   // File Upload
   async uploadFile(file: File, folder: string) {

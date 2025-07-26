@@ -1,0 +1,77 @@
+/* Minimal styling for AI Chat component */
+.minimal-chat-container {
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Reset styles for conversation area */
+.minimal-chat-container .ai-conversation {
+  background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Scrollbar styling */
+.minimal-chat-container .ai-conversation::-webkit-scrollbar {
+  width: 5px;
+}
+
+.minimal-chat-container .ai-conversation::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-chat-container .ai-conversation::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+/* Subtle hover effect on messages */
+.minimal-chat-container .ai-message {
+  transition: background-color 0.2s ease;
+}
+.minimal-chat-container .ai-message:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Style adjustments for input area */
+.minimal-chat-container textarea {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  caret-color: white;
+}
+
+.minimal-chat-container textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Focus states */
+.minimal-chat-container button:focus {
+  outline: none;
+}
+
+/* Message styling */
+.minimal-chat-container .ai-message.user {
+  position: relative;
+  border-top-right-radius: 4px;
+}
+
+.minimal-chat-container .ai-message.assistant {
+  margin-right: 8px;
+  border-top-left-radius: 4px;
+}
+
+/* Add subtle border highlight for better visibility */
+.minimal-chat-container .ai-message.assistant {
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.minimal-chat-container .ai-message.user {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Transition effects */
+.minimal-chat-container button {
+  transition: all 0.15s ease;
+}
