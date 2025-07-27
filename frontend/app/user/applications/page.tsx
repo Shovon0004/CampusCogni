@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { BentoCard } from "@/components/ui/bento-card"
 import { Skeleton, CardSkeleton, JobCardSkeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
@@ -17,12 +18,8 @@ import {
   MapPin, 
   Clock,
   Building,
-  Eye,
   Calendar,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+  CheckCircle
 } from "lucide-react"
 
 interface Application {
@@ -107,38 +104,6 @@ export default function UserApplicationsPage() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "APPLIED":
-        return "bg-blue-100 text-blue-800"
-      case "UNDER_REVIEW":
-        return "bg-yellow-100 text-yellow-800"
-      case "SHORTLISTED":
-        return "bg-purple-100 text-purple-800"
-      case "INTERVIEW_SCHEDULED":
-        return "bg-green-100 text-green-800"
-      case "REJECTED":
-        return "bg-red-100 text-red-800"
-      case "HIRED":
-        return "bg-emerald-100 text-emerald-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "INTERVIEW_SCHEDULED":
-        return <Calendar className="h-4 w-4" />
-      case "HIRED":
-        return <CheckCircle className="h-4 w-4" />
-      case "REJECTED":
-        return <XCircle className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
-  }
-
   if (loading || isLoading) {
     return (
       <div className="min-h-screen">
@@ -178,120 +143,92 @@ export default function UserApplicationsPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
-                    <p className="text-2xl font-bold">{stats.total}</p>
-                  </div>
-                  <Briefcase className="h-8 w-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
-                    <p className="text-2xl font-bold">{stats.pending}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-yellow-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Interviews</p>
-                    <p className="text-2xl font-bold">{stats.interviewed}</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="backdrop-blur-sm bg-background/95">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Hired</p>
-                    <p className="text-2xl font-bold">{stats.hired}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-emerald-500" />
-                </div>
-              </CardContent>
-            </Card>
+            <BentoCard
+              title={stats.total.toString()}
+              description="Total Applications"
+              icon={<Briefcase className="h-4 w-4 text-blue-500" />}
+              variant="compact"
+            />
+            
+            <BentoCard
+              title={stats.pending.toString()}
+              description="Pending Review"
+              icon={<Clock className="h-4 w-4 text-yellow-500" />}
+              variant="compact"
+            />
+            
+            <BentoCard
+              title={stats.interviewed.toString()}
+              description="Interviews"
+              icon={<Calendar className="h-4 w-4 text-green-500" />}
+              variant="compact"
+            />
+            
+            <BentoCard
+              title={stats.hired.toString()}
+              description="Hired"
+              icon={<CheckCircle className="h-4 w-4 text-emerald-500" />}
+              variant="compact"
+            />
           </div>
 
           {/* Applications List */}
-          <Card className="backdrop-blur-sm bg-background/95">
-            <CardHeader>
-              <CardTitle>Application History</CardTitle>
-              <CardDescription>View and track all your job applications</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {applications.length === 0 ? (
-                <div className="text-center py-12">
-                  <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Applications Yet</h3>
-                  <p className="text-muted-foreground mb-4">Start applying to jobs to see them here</p>
-                  <Button asChild>
-                    <a href="/user/dashboard">Browse Jobs</a>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {applications.map((application) => (
-                    <div key={application.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-1">{application.jobTitle}</h3>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                            <div className="flex items-center gap-1">
-                              <Building className="h-4 w-4" />
-                              {application.company}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
-                              {application.location}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              Applied {application.appliedDate}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{application.jobType}</Badge>
-                          <Badge variant="outline">{application.stipend}</Badge>
-                        </div>
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-2">Application History</h2>
+              <p className="text-muted-foreground">View and track all your job applications</p>
+            </div>
+            
+            {applications.length === 0 ? (
+              <div className="flex justify-center">
+                <BentoCard
+                  title="No Applications Yet"
+                  description="Start applying to jobs to see them here"
+                  icon={<Briefcase className="h-4 w-4 text-muted-foreground" />}
+                  cta="Browse Jobs →"
+                  onClick={() => router.push('/user/dashboard')}
+                  variant="large"
+                  className="max-w-md text-center"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {applications.map((application) => (
+                  <BentoCard
+                    key={application.id}
+                    title={application.jobTitle}
+                    description={application.company}
+                    icon={<Building className="h-4 w-4 text-purple-500" />}
+                    status={application.status.replace('_', ' ')}
+                    meta={`${application.stipend} • ${application.location}`}
+                    cta="View Details →"
+                    variant="large"
+                    onClick={() => {
+                      // TODO: Navigate to application details or job details
+                      toast({
+                        title: "Application Details",
+                        description: `Viewing details for ${application.jobTitle}`,
+                      })
+                    }}
+                  >
+                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {application.location}
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
-                            {getStatusIcon(application.status)}
-                            {application.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Details
-                          </Button>
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Applied {application.appliedDate}
                       </div>
+                      <Badge variant="outline" className="text-xs">
+                        {application.jobType}
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </BentoCard>
+                ))}
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
     </div>
