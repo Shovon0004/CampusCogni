@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
+import { Footer } from "@/components/footer"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { useJobs } from "@/hooks/use-cached-data"
@@ -51,7 +52,7 @@ interface Job {
   }
 }
 
-export default function JobsPage() {
+function JobsPageContent() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -434,6 +435,45 @@ export default function JobsPage() {
           )}
         </motion.div>
       </div>
+      <Footer />
     </div>
+  )
+}
+
+// Loading component for Suspense fallback
+function JobsPageLoading() {
+  return (
+    <div className="min-h-screen">
+      <BackgroundPaths />
+      <FloatingNavbar userRole="USER" userName="Loading..." />
+      <div className="container mx-auto px-4 py-24">
+        <div className="space-y-8">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/10 animate-pulse" />
+            <div className="h-8 bg-muted animate-pulse rounded mb-4 max-w-md mx-auto" />
+            <div className="h-4 bg-muted animate-pulse rounded max-w-lg mx-auto" />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="p-6 rounded-xl border bg-card animate-pulse">
+                <div className="h-4 bg-muted rounded mb-2" />
+                <div className="h-3 bg-muted rounded mb-4 w-2/3" />
+                <div className="h-3 bg-muted rounded mb-2" />
+                <div className="h-3 bg-muted rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense fallback={<JobsPageLoading />}>
+      <JobsPageContent />
+    </Suspense>
   )
 }
