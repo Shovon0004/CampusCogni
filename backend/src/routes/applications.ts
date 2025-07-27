@@ -97,19 +97,29 @@ router.get('/', async (req: any, res: any) => {
         include: {
           student: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
+              phone: true,
               college: true,
               course: true,
               year: true,
               cgpa: true,
+              location: true,
+              bio: true,
               resumeUrl: true,
               skills: true,
               profilePic: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
             },
           },
           job: {
             select: {
+              id: true,
               title: true,
               type: true,
               location: true,

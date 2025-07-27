@@ -273,7 +273,7 @@ class CachedApiClient {
     }
     
     return this.fetchWithCache(
-      `/api/recruiters/profile/${userId}`,
+      `/api/recruiters/${userId}`,
       cacheKey,
       {},
       10 * 60 * 1000 // 10 minutes
@@ -293,6 +293,42 @@ class CachedApiClient {
       {},
       5 * 60 * 1000 // 5 minutes
     );
+  }
+
+  // Get recruiter applications
+  async getRecruiterApplications(recruiterId: string, forceRefresh = false): Promise<any> {
+    const cacheKey = `recruiter_applications_${recruiterId}`;
+    
+    if (forceRefresh) {
+      dataCache.invalidate(cacheKey);
+    }
+    
+    return this.fetchWithCache(
+      `/api/applications/recruiter/${recruiterId}`,
+      cacheKey,
+      {},
+      2 * 60 * 1000 // 2 minutes
+    );
+  }
+
+  // Update application status
+  async updateApplicationStatus(applicationId: string, status: string): Promise<any> {
+    const response = await this.fetchFresh(
+      `/api/applications/${applicationId}/status`,
+      `application_status_${applicationId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      }
+    );
+
+    // Invalidate related cache
+    const recruiterId = this.getCurrentUserId();
+    if (recruiterId) {
+      dataCache.invalidate(`recruiter_applications_${recruiterId}`);
+    }
+    
+    return response;
   }
 
   // User role management
