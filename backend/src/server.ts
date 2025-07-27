@@ -157,6 +157,8 @@ const corsOptions = {
       'https://campus-cogni.vercel.app',
       'https://campus-cogni-bay.vercel.app',
       'https://campuscogni-*.vercel.app', // Allow preview deployments
+      // Add your actual production frontend URL here
+      process.env.FRONTEND_URL || 'https://your-frontend-domain.com'
     ];
     
     const isAllowed = allowedOrigins.some(allowedOrigin => {
