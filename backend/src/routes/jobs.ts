@@ -151,7 +151,8 @@ router.post(
       const typeMap: Record<string, string> = {
         "part-time": "PART_TIME",
         "full-time": "FULL_TIME",
-        "internship": "INTERNSHIP"
+        "internship": "INTERNSHIP",
+        "contract": "CONTRACT"
       };
       if (jobData.type && typeMap[jobData.type]) {
         jobData.type = typeMap[jobData.type];
