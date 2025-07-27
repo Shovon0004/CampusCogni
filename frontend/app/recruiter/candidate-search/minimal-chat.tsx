@@ -144,6 +144,10 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
   // Helper function to extract skill ratings from AI text response
   const extractSkillRatings = (text: string): Record<string, number> | null => {
     try {
+      // Add a timeout to prevent infinite loops
+      const startTime = Date.now();
+      const timeout = 5000; // 5 seconds timeout
+      
       // Common programming skills to look for (improves accuracy)
       const commonSkills = [
         "JavaScript", "TypeScript", "Python", "Java", "C#", "C\\+\\+", "Ruby", "PHP", "Swift", "Kotlin", 
@@ -156,6 +160,13 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       
       const skills: Record<string, number> = {};
       
+      // Check timeout function
+      const checkTimeout = () => {
+        if (Date.now() - startTime > timeout) {
+          throw new Error('Skill extraction timeout');
+        }
+      };
+      
       // First, try to detect markdown tables which are the most reliable source
       const tableRows = text.split('\n').filter(line => line.includes('|'));
       
@@ -166,6 +177,8 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         const dataRows = tableRows.slice(2);
         
         for (const row of dataRows) {
+          checkTimeout(); // Check for timeout
+          
           const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
           
           if (cells.length >= 2) {
@@ -210,117 +223,76 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       
       // If no skills were extracted from tables or not enough, try regex patterns
       if (Object.keys(skills).length < 3) {
-        // Stronger pattern for skill rating extraction (prioritizes markdown formats like `JavaScript`: 8/10)
-        // Escape special regex characters in the list of common skills
-        const escapedCommonSkills = commonSkills.map(skill => skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        checkTimeout(); // Check for timeout
         
-        const patternTypes = [
-          // Markdown style with backticks: `JavaScript`: 9/10
-          new RegExp(`\`(${escapedCommonSkills.join('|')}|[A-Za-z0-9#.\\-_/]+(?:\\s*[A-Za-z0-9#.\\-_/]+)*)\`\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+        // Simplified and safer regex patterns
+        const safePatterns = [
+          // Simple colon format: JavaScript: 8/10 or JavaScript: 8
+          /(\w+(?:\+\+|#|\.js|\.ts)?)\s*[:\-]\s*(\d+)(?:\s*[\/\\]\s*(\d+))?/gi,
           
-          // Bold style with asterisks: **JavaScript**: 9/10
-          new RegExp(`\\*\\*(${escapedCommonSkills.join('|')}|[A-Za-z0-9#.\\-_/]+(?:\\s*[A-Za-z0-9#.\\-_/]+)*)\\*\\*\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+          // Backtick format: `JavaScript`: 8/10
+          /`([^`]+)`\s*[:\-]\s*(\d+)(?:\s*[\/\\]\s*(\d+))?/gi,
           
-          // List item with rating: - JavaScript: 9/10 or * JavaScript: 9/10
-          new RegExp(`(?:^|\\n)\\s*[\\-\\*•]\\s*(${escapedCommonSkills.join('|')}|[A-Za-z0-9#.\\-_/]+(?:\\s*[A-Za-z0-9#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gim'),
-          
-          // Standard format: JavaScript: 9/10
-          new RegExp(`(${escapedCommonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi')
+          // Parentheses format: JavaScript (8/10)
+          /(\w+(?:\+\+|#|\.js|\.ts)?)\s*\((\d+)(?:\s*[\/\\]\s*(\d+))?\)/gi
         ];
         
-        // Try each pattern type in priority order
-        for (const regex of patternTypes) {
-          const matches = [...text.matchAll(regex)];
+        for (const pattern of safePatterns) {
+          checkTimeout(); // Check for timeout
           
-          matches.forEach(match => {
-            const skillName = match[1].trim().replace(/[`*]/g, '');  // Remove any markdown symbols
+          let match;
+          let matchCount = 0;
+          const maxMatches = 50; // Prevent infinite matching
+          
+          while ((match = pattern.exec(text)) !== null && matchCount < maxMatches) {
+            matchCount++;
+            checkTimeout(); // Check for timeout
+            
+            const skillName = match[1].trim();
             
             // Skip non-skill words
             const nonSkillWords = ['rating', 'score', 'overall', 'total', 'average', 'summary', 'conclusion'];
-            if (nonSkillWords.some(word => skillName.toLowerCase().includes(word))) return;
+            if (nonSkillWords.some(word => skillName.toLowerCase().includes(word))) {
+              continue;
+            }
             
             const rating = parseInt(match[2], 10);
             const maxRating = match[3] ? parseInt(match[3], 10) : 10;
             
             // Normalize to a scale of 10
             let normalizedRating = (rating / maxRating) * 10;
-            normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+            normalizedRating = Math.round(normalizedRating * 10) / 10;
             
             // Only include if it looks like a valid skill and not already added
             if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
               skills[skillName] = normalizedRating;
             }
-          });
+            
+            // Prevent infinite loops by breaking if we have enough skills
+            if (Object.keys(skills).length >= 20) break;
+          }
+          
+          // Reset regex to prevent issues with global flag
+          pattern.lastIndex = 0;
         }
         
-        // Look for skills with ratings in parentheses: JavaScript (8/10)
-        // Make sure we use properly escaped skill names
-        const parenthesisPattern = new RegExp(`(${escapedCommonSkills.join('|')}|[A-Za-z0-9#.\\-_/]+(?:\\s*[A-Za-z0-9#.\\-_/]+)*)\\s*\\((\\d+)(?:\\s*\\/\\s*(\\d+))?\\)`, 'gi');
-        const parenthesisMatches = [...text.matchAll(parenthesisPattern)];
-        
-        parenthesisMatches.forEach(match => {
-          const skillName = match[1].trim();
-          const rating = parseInt(match[2], 10);
-          const maxRating = match[3] ? parseInt(match[3], 10) : 10;
+        // Simple check for common skills with ratings
+        for (const skill of commonSkills.slice(0, 20)) { // Limit to first 20 skills
+          checkTimeout(); // Check for timeout
           
-          // Normalize to a scale of 10
-          let normalizedRating = (rating / maxRating) * 10;
-          normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
-          
-          if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
-            skills[skillName] = normalizedRating;
-          }
-        });
-        
-        // Secondary check for skills mentioned in the text with rating nearby
-        for (const skill of commonSkills) {
           if (!skills[skill]) {
-            // Escape special regex characters in skill name
-            const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const skillRegexes = [
-              new RegExp(`${escapedSkill}[^.]*?(\\d+)\\s*\\/\\s*10`, 'i'),
-              new RegExp(`${escapedSkill}[^.]*?rated\\s*(?:at)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
-              new RegExp(`${escapedSkill}[^.]*?score\\s*(?:of)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
+            // Simple non-greedy patterns
+            const simplePatterns = [
+              new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]{0,50}?(\\d+)\\s*[/\\\\]\\s*10`, 'i'),
+              new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]{0,30}?\\b(\\d+)\\b`, 'i')
             ];
             
-            for (const regex of skillRegexes) {
+            for (const regex of simplePatterns) {
               const match = text.match(regex);
               if (match) {
                 const rating = parseInt(match[1], 10);
-                const maxRating = match[2] ? parseInt(match[2], 10) : 10;
-                
-                // Normalize to a scale of 10
-                let normalizedRating = (rating / maxRating) * 10;
-                normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
-                
-                skills[skill] = normalizedRating;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Look for word-based ratings like "Expert in JavaScript"
-        const wordRatings = [
-          { words: ['excellent', 'outstanding', 'exceptional', 'expert', 'mastery'], value: 9.5 },
-          { words: ['very good', 'strong', 'proficient', 'advanced'], value: 8.5 },
-          { words: ['good', 'solid', 'competent', 'capable'], value: 7.5 },
-          { words: ['fair', 'moderate', 'intermediate', 'average'], value: 6.5 },
-          { words: ['basic', 'beginner', 'elementary', 'limited'], value: 5.0 },
-          { words: ['poor', 'weak', 'minimal', 'novice'], value: 3.5 }
-        ];
-        
-        for (const skill of commonSkills) {
-          if (!skills[skill]) {
-            for (const { words, value } of wordRatings) {
-              for (const word of words) {
-                // Check patterns like "Expert in JavaScript" or "JavaScript: Expert"
-                const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const patternBefore = new RegExp(`${word}\\s+(?:in|with|at)\\s+${escapedSkill}`, 'i');
-                const patternAfter = new RegExp(`${escapedSkill}\\s*(?::|-)\\s*${word}`, 'i');
-                
-                if (patternBefore.test(text) || patternAfter.test(text)) {
-                  skills[skill] = value;
+                if (rating >= 0 && rating <= 10) {
+                  skills[skill] = rating;
                   break;
                 }
               }
@@ -363,6 +335,16 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
     try {
       if (candidateNames.length < 2) return null;
       
+      // Add timeout protection
+      const startTime = Date.now();
+      const timeout = 5000; // 5 seconds timeout
+      
+      const checkTimeout = () => {
+        if (Date.now() - startTime > timeout) {
+          throw new Error('Comparison data extraction timeout');
+        }
+      };
+      
       const comparisonData: ComparisonData = {
         overall: [],
         skills: [],
@@ -388,8 +370,10 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
           candidateScores[name] = {};
         });
         
-        // Process table cells
-        tableCells.forEach(match => {
+        // Process table cells with timeout protection
+        tableCells.forEach((match, index) => {
+          if (index % 10 === 0) checkTimeout(); // Check timeout every 10 iterations
+          
           const col1 = match[1].trim();
           const col2 = match[2].trim();
           
@@ -439,7 +423,9 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         });
         
         // Process skill comparisons from the table data
-        skillNames.forEach(skill => {
+        skillNames.forEach((skill, index) => {
+          if (index % 5 === 0) checkTimeout(); // Check timeout every 5 iterations
+          
           const candidates = candidateNames
             .filter(name => candidateScores[name][skill] !== undefined)
             .map(name => ({
@@ -461,7 +447,9 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         console.log("Falling back to text-based rating extraction");
         
         // For each candidate, try to find overall ratings in the text
-        candidateNames.forEach(name => {
+        candidateNames.forEach((name, index) => {
+          if (index % 2 === 0) checkTimeout(); // Check timeout every 2 candidates
+          
           if (!comparisonData.overall.find(item => item.name === name)) {
             // Escape special regex characters in candidate name
             const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -548,7 +536,10 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         ];
         
         // For each common skill, check if it's mentioned with candidates
-        commonSkills.forEach(skill => {
+        for (let i = 0; i < Math.min(commonSkills.length, 20); i++) {
+          checkTimeout();
+          
+          const skill = commonSkills[i];
           const skillMention = text.indexOf(skill);
           
           if (skillMention >= 0) {
@@ -561,19 +552,20 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
             // Look for candidate mentions in this section
             const candidatesWithRatings = [];
             
-            for (const name of candidateNames) {
+            for (let j = 0; j < Math.min(candidateNames.length, 10); j++) {
+              checkTimeout();
+              
+              const name = candidateNames[j];
               if (surroundingText.includes(name)) {
-                // Try to find a rating for this candidate and skill
-                // Escape special regex characters in skill name and candidate name
-                const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const ratingPattern = new RegExp(`${escapedName}[^.]*?${escapedSkill}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?|${escapedSkill}[^.]*?${escapedName}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i');
-                const match = surroundingText.match(ratingPattern);
+                // Try to find a rating for this candidate and skill using simpler pattern
+                const skillPattern = new RegExp(`\\b${skill}\\b[^.]*?(\\d+)(?:/\\d+)?`, 'i');
+                const namePattern = new RegExp(`\\b${name}\\b[^.]*?(\\d+)(?:/\\d+)?`, 'i');
+                
+                let match = surroundingText.match(skillPattern) || surroundingText.match(namePattern);
                 
                 if (match) {
-                  const rating = parseInt(match[1] || match[3], 10);
-                  const maxRating = match[2] || match[4] ? parseInt(match[2] || match[4], 10) : 10;
-                  const normalizedRating = (rating / maxRating) * 10;
+                  const rating = parseInt(match[1], 10);
+                  const normalizedRating = Math.min(rating, 10); // Assume 10 max if not specified
                   
                   candidatesWithRatings.push({
                     name,
@@ -590,7 +582,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               });
             }
           }
-        });
+        }
       }
       
       // If we have enough data, return it
