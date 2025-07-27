@@ -304,7 +304,7 @@ class CachedApiClient {
     }
     
     return this.fetchWithCache(
-      `/api/applications/recruiter/${recruiterId}`,
+      `/api/applications?recruiterId=${recruiterId}`,
       cacheKey,
       {},
       2 * 60 * 1000 // 2 minutes
