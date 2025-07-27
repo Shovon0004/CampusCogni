@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton, CardSkeleton, StatCardSkeleton } from "@/components/ui/skeleton"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BackgroundPaths } from "@/components/background-paths"
 import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
@@ -40,6 +41,7 @@ import {
   Eye
 } from "lucide-react"
 import { SkillsAutocomplete } from "@/components/ui/skills-autocomplete"
+import { ProfilePictureUpload } from "@/components/profile-picture-upload"
 
 interface UserProfile {
   id: string
@@ -49,8 +51,8 @@ interface UserProfile {
   location: string
   dateOfBirth: string
   college: string
-  degree: string
-  graduationYear: string
+  course: string
+  year: string
   bio: string
   skills: string[]
   experience: string
@@ -59,7 +61,7 @@ interface UserProfile {
   linkedin: string
   portfolio: string
   achievements: string[]
-  gpa: string
+  cgpa: number
   resumeUrl: string
   profilePicture: string
 }
@@ -99,8 +101,8 @@ export default function UserProfilePage() {
     location: "",
     dateOfBirth: "",
     college: "",
-    degree: "",
-    graduationYear: "",
+    course: "",
+    year: "",
     bio: "",
     skills: [],
     experience: "",
@@ -109,7 +111,7 @@ export default function UserProfilePage() {
     linkedin: "",
     portfolio: "",
     achievements: [],
-    gpa: "",
+    cgpa: 0,
     resumeUrl: "",
     profilePicture: ""
   })
@@ -152,8 +154,8 @@ export default function UserProfilePage() {
         location: userProfile.location || "",
         dateOfBirth: "", // Add this field to backend if needed
         college: userProfile.college,
-        degree: userProfile.course,
-        graduationYear: userProfile.year,
+        course: userProfile.course,
+        year: userProfile.year,
         bio: userProfile.bio || "",
         skills: userProfile.skills || [],
         experience: "", // Calculate from experience entries
@@ -162,7 +164,7 @@ export default function UserProfilePage() {
         linkedin: "",
         portfolio: "",
         achievements: [], // Add achievements to backend if needed
-        gpa: userProfile.cgpa?.toString() || "",
+        cgpa: userProfile.cgpa || 0,
         resumeUrl: userProfile.resumeUrl || "",
         profilePicture: userProfile.profilePic || "/placeholder-user.jpg"
       }
@@ -222,11 +224,12 @@ export default function UserProfilePage() {
         phone: profile.phone,
         location: profile.location,
         college: profile.college,
-        course: profile.degree,
-        year: profile.graduationYear,
-        cgpa: parseFloat(profile.gpa) || 0,
+        course: profile.course,
+        year: profile.year,
+        cgpa: profile.cgpa || 0,
         bio: profile.bio,
         skills: profile.skills,
+        profilePic: profile.profilePicture !== "/placeholder-user.jpg" ? profile.profilePicture : null,
         // Add other fields as needed
       }
       
@@ -400,23 +403,22 @@ export default function UserProfilePage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-6">
-                <div className="relative">
+                {isEditing ? (
+                  <ProfilePictureUpload
+                    currentImageUrl={profile.profilePicture}
+                    userType="student"
+                    userId={user?.id || ''}
+                    onImageUpdate={(newImageUrl) => setProfile(prev => ({ ...prev, profilePicture: newImageUrl || "/placeholder-user.jpg" }))}
+                  />
+                ) : (
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={profile.profilePicture} />
                     <AvatarFallback className="text-xl">
                       {profile.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
-                  {isEditing && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                )}
+                
                 
                 <div className="flex-1">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -506,6 +508,105 @@ export default function UserProfilePage() {
                       </p>
                     )}
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Academic Information */}
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                Academic Information
+              </CardTitle>
+              <CardDescription>
+                Your academic details are used for job eligibility matching
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="college" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    College
+                  </Label>
+                  {isEditing ? (
+                    <Input
+                      id="college"
+                      value={profile.college}
+                      onChange={(e) => setProfile(prev => ({ ...prev, college: e.target.value }))}
+                      placeholder="Your college name"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.college}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="course" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Course
+                  </Label>
+                  {isEditing ? (
+                    <Select value={profile.course} onValueChange={(value) => setProfile(prev => ({ ...prev, course: value }))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select your course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Computer Science">Computer Science</SelectItem>
+                        <SelectItem value="Electronics & Communication">Electronics & Communication</SelectItem>
+                        <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
+                        <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
+                        <SelectItem value="MBA">MBA</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.course || 'Not specified'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="year" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Academic Year
+                  </Label>
+                  {isEditing ? (
+                    <Select value={profile.year} onValueChange={(value) => setProfile(prev => ({ ...prev, year: value }))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select your year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1st Year">1st Year</SelectItem>
+                        <SelectItem value="2nd Year">2nd Year</SelectItem>
+                        <SelectItem value="3rd Year">3rd Year</SelectItem>
+                        <SelectItem value="4th Year">4th Year</SelectItem>
+                        <SelectItem value="Graduate">Graduate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.year || 'Not specified'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="cgpa" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    CGPA
+                  </Label>
+                  {isEditing ? (
+                    <Input
+                      id="cgpa"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={profile.cgpa || ''}
+                      onChange={(e) => setProfile(prev => ({ ...prev, cgpa: parseFloat(e.target.value) || 0 }))}
+                      placeholder="Your CGPA (e.g., 8.5)"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.cgpa ? profile.cgpa.toFixed(2) : 'Not specified'}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
