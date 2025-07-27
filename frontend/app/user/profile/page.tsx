@@ -70,17 +70,6 @@ interface UserProfile {
   profilePicture: string
 }
 
-interface Education {
-  id: string
-  institution: string
-  degree: string
-  fieldOfStudy: string
-  startYear: string
-  endYear: string
-  gpa?: string
-  achievements?: string[]
-}
-
 interface Experience {
   id: string
   company: string
@@ -119,7 +108,6 @@ export default function UserProfilePage() {
     resumeUrl: "",
     profilePicture: ""
   })
-  const [education, setEducation] = useState<Education[]>([])
   const [workExperience, setWorkExperience] = useState<Experience[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [experiences, setExperiences] = useState<any[]>([])
@@ -178,18 +166,6 @@ export default function UserProfilePage() {
 
       setProfile(profileData)
       
-      // Transform education data (using college as main education)
-      const educationData: Education[] = [{
-        id: userProfile.id,
-        institution: userProfile.college,
-        degree: userProfile.course,
-        fieldOfStudy: userProfile.course,
-        startYear: (parseInt(userProfile.year) - 4).toString(),
-        endYear: userProfile.year,
-        gpa: userProfile.cgpa?.toString() || "",
-        achievements: []
-      }]
-      
       // Transform experience data
       const experienceData: Experience[] = userProfile.experiences?.map((exp: any) => ({
         id: exp.id,
@@ -201,7 +177,6 @@ export default function UserProfilePage() {
         skills: [] // Add skills to experience model if needed
       })) || []
 
-      setEducation(educationData)
       setWorkExperience(experienceData)
 
       // Fetch projects, experiences, and certifications
@@ -626,60 +601,6 @@ export default function UserProfilePage() {
                     <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.cgpa ? profile.cgpa.toFixed(2) : 'Not specified'}</p>
                   )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Education */}
-          <Card className="mb-8 backdrop-blur-sm bg-background/95">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                Education
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {education.map((edu) => (
-                  <div key={edu.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          {edu.degree} in {edu.fieldOfStudy}
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          {edu.institution}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {edu.startYear} - {edu.endYear}
-                        </p>
-                        {edu.gpa && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            GPA: {edu.gpa}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className={getStatusColor("ACTIVE")}>
-                        Current
-                      </Badge>
-                    </div>
-                    {edu.achievements && edu.achievements.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Achievements:
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {edu.achievements.map((achievement, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              <Award className="h-3 w-3 mr-1" />
-                              {achievement}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
