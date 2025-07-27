@@ -98,11 +98,11 @@ export default function ExperienceManagement({ studentId, experiences, onExperie
       const experienceData = {
         studentId,
         company: formData.company,
-        role: formData.position, // Backend requires 'role' field
+        position: formData.position, // Backend expects 'position' field in request body
         description: formData.description || undefined, // Use undefined instead of null for optional fields
         startDate: formData.startDate || new Date().toISOString(), // Always provide a date
         endDate: formData.isCurrent ? undefined : (formData.endDate || undefined), // Use undefined instead of null
-        current: formData.isCurrent // Backend requires 'current' field
+        isCurrent: formData.isCurrent // Backend expects 'isCurrent' field in request body
       }
 
       let result: Experience
