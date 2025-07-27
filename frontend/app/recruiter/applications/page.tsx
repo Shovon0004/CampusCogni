@@ -30,7 +30,13 @@ import {
   Clock,
   XCircle,
   Eye,
-  Download
+  Download,
+  Award,
+  Building,
+  ExternalLink,
+  Code,
+  User,
+  BookOpen
 } from "lucide-react"
 
 interface JobPost {
@@ -56,11 +62,16 @@ interface Application {
     course: string
     year: string
     cgpa: number
+    location?: string
+    bio?: string
     resumeUrl?: string
     skills?: string[]
     profilePic?: string
     email?: string
     phone?: string
+    projects?: Project[]
+    experiences?: Experience[]
+    certifications?: Certification[]
   }
   job: {
     title: string
@@ -80,12 +91,47 @@ interface StudentProfile {
   course: string
   year: string
   cgpa: number
+  location?: string
+  bio?: string
   skills?: string[]
   resumeUrl?: string
   profilePic?: string
   linkedinUrl?: string
   githubUrl?: string
   portfolioUrl?: string
+  projects?: Project[]
+  experiences?: Experience[]
+  certifications?: Certification[]
+}
+
+interface Project {
+  id: string
+  title: string
+  description: string
+  technologies: string[]
+  link?: string
+  startDate?: string
+  endDate?: string
+}
+
+interface Experience {
+  id: string
+  company: string
+  role: string
+  description?: string
+  startDate: string
+  endDate?: string
+  current: boolean
+}
+
+interface Certification {
+  id: string
+  name: string
+  issuer: string
+  dateObtained: string
+  expiryDate?: string
+  credentialId?: string
+  credentialUrl?: string
 }
 
 export default function RecruiterApplicationsPage() {
@@ -180,11 +226,16 @@ export default function RecruiterApplicationsPage() {
           course: app.student.course,
           year: app.student.year,
           cgpa: app.student.cgpa,
+          location: app.student.location,
+          bio: app.student.bio,
           resumeUrl: app.student.resumeUrl,
           skills: app.student.skills,
           profilePic: app.student.profilePic,
           email: app.student.user?.email,
-          phone: app.student.phone
+          phone: app.student.phone,
+          projects: app.student.projects || [],
+          experiences: app.student.experiences || [],
+          certifications: app.student.certifications || []
         },
         job: {
           title: app.job.title,
@@ -495,7 +546,8 @@ export default function RecruiterApplicationsPage() {
 
           {/* Student Profile View */}
           {view === 'profile' && selectedStudent && (
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-6xl mx-auto space-y-6">
+              {/* Header Card */}
               <Card className="border-0 shadow-lg">
                 <CardHeader className="pb-6">
                   <div className="flex items-start gap-6">
@@ -507,7 +559,7 @@ export default function RecruiterApplicationsPage() {
                     </Avatar>
                     
                     <div className="flex-1">
-                      <CardTitle className="text-2xl mb-2">
+                      <CardTitle className="text-3xl mb-2">
                         {selectedStudent.firstName} {selectedStudent.lastName}
                       </CardTitle>
                       <div className="space-y-2 text-muted-foreground">
@@ -519,84 +571,274 @@ export default function RecruiterApplicationsPage() {
                           <MapPin className="h-4 w-4" />
                           <span>{selectedStudent.college}</span>
                         </div>
+                        {selectedStudent.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{selectedStudent.location}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
+                          <Award className="h-4 w-4" />
                           <span className="font-medium">CGPA: {selectedStudent.cgpa}</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-6">
-                  {/* Contact Information */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{selectedStudent.email}</span>
-                      </div>
-                      {selectedStudent.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">{selectedStudent.phone}</span>
+                      
+                      {selectedStudent.bio && (
+                        <div className="mt-4">
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {selectedStudent.bio}
+                          </p>
                         </div>
                       )}
                     </div>
                   </div>
-                  
-                  <Separator />
-                  
+                </CardHeader>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - Contact & Skills */}
+                <div className="space-y-6">
+                  {/* Contact Information */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Contact Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{selectedStudent.email}</span>
+                      </div>
+                      {selectedStudent.phone && (
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{selectedStudent.phone}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   {/* Skills */}
                   {selectedStudent.skills && selectedStudent.skills.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Skills</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedStudent.skills.map((skill, index) => (
-                          <Badge key={index} variant="secondary">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Code className="h-5 w-5" />
+                          Skills
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedStudent.skills.map((skill, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
-                  
+
                   {/* Actions */}
-                  <div className="flex gap-4 pt-4">
-                    {selectedStudent.resumeUrl && (
-                      <Button 
-                        onClick={() => window.open(selectedStudent.resumeUrl, '_blank')}
-                        className="flex items-center gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        View Resume
-                      </Button>
-                    )}
-                    
-                    {selectedStudent.linkedinUrl && (
-                      <Button 
-                        variant="outline"
-                        onClick={() => window.open(selectedStudent.linkedinUrl, '_blank')}
-                        className="flex items-center gap-2"
-                      >
-                        <Globe className="h-4 w-4" />
-                        LinkedIn
-                      </Button>
-                    )}
-                    
-                    {selectedStudent.githubUrl && (
-                      <Button 
-                        variant="outline"
-                        onClick={() => window.open(selectedStudent.githubUrl, '_blank')}
-                        className="flex items-center gap-2"
-                      >
-                        <Globe className="h-4 w-4" />
-                        GitHub
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {selectedStudent.resumeUrl && (
+                        <Button 
+                          onClick={() => window.open(selectedStudent.resumeUrl, '_blank')}
+                          className="w-full flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Resume
+                        </Button>
+                      )}
+                      
+                      {selectedStudent.linkedinUrl && (
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open(selectedStudent.linkedinUrl, '_blank')}
+                          className="w-full flex items-center gap-2"
+                        >
+                          <Globe className="h-4 w-4" />
+                          LinkedIn Profile
+                        </Button>
+                      )}
+                      
+                      {selectedStudent.githubUrl && (
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.open(selectedStudent.githubUrl, '_blank')}
+                          className="w-full flex items-center gap-2"
+                        >
+                          <Globe className="h-4 w-4" />
+                          GitHub Profile
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Right Column - Experience, Projects, Certifications */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Experience */}
+                  {selectedStudent.experiences && selectedStudent.experiences.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Building className="h-5 w-5" />
+                          Experience
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {selectedStudent.experiences.map((exp, index) => (
+                          <div key={exp.id} className={`pb-4 ${index !== selectedStudent.experiences!.length - 1 ? 'border-b' : ''}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h4 className="font-semibold">{exp.role}</h4>
+                                <p className="text-sm text-muted-foreground">{exp.company}</p>
+                              </div>
+                              <div className="text-xs text-muted-foreground text-right">
+                                <div>{new Date(exp.startDate).toLocaleDateString()}</div>
+                                <div>to</div>
+                                <div>{exp.current ? 'Present' : (exp.endDate ? new Date(exp.endDate).toLocaleDateString() : 'Present')}</div>
+                              </div>
+                            </div>
+                            {exp.description && (
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {exp.description}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Projects */}
+                  {selectedStudent.projects && selectedStudent.projects.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Code className="h-5 w-5" />
+                          Projects
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {selectedStudent.projects.map((project, index) => (
+                          <div key={project.id} className={`pb-4 ${index !== selectedStudent.projects!.length - 1 ? 'border-b' : ''}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold">{project.title}</h4>
+                                  {project.link && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(project.link, '_blank')}
+                                      className="p-1 h-auto"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                                  {project.description}
+                                </p>
+                              </div>
+                              {(project.startDate || project.endDate) && (
+                                <div className="text-xs text-muted-foreground text-right">
+                                  {project.startDate && <div>{new Date(project.startDate).toLocaleDateString()}</div>}
+                                  {project.endDate && (
+                                    <>
+                                      <div>to</div>
+                                      <div>{new Date(project.endDate).toLocaleDateString()}</div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {project.technologies && project.technologies.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {project.technologies.map((tech, techIndex) => (
+                                  <Badge key={techIndex} variant="outline" className="text-xs">
+                                    {tech}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Certifications */}
+                  {selectedStudent.certifications && selectedStudent.certifications.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Award className="h-5 w-5" />
+                          Certifications
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {selectedStudent.certifications.map((cert, index) => (
+                          <div key={cert.id} className={`pb-4 ${index !== selectedStudent.certifications!.length - 1 ? 'border-b' : ''}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold">{cert.name}</h4>
+                                  {cert.credentialUrl && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(cert.credentialUrl, '_blank')}
+                                      className="p-1 h-auto"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{cert.issuer}</p>
+                                {cert.credentialId && (
+                                  <p className="text-xs text-muted-foreground">ID: {cert.credentialId}</p>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground text-right">
+                                <div>Obtained: {new Date(cert.dateObtained).toLocaleDateString()}</div>
+                                {cert.expiryDate && (
+                                  <div>Expires: {new Date(cert.expiryDate).toLocaleDateString()}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Empty state if no additional info */}
+                  {(!selectedStudent.experiences || selectedStudent.experiences.length === 0) &&
+                   (!selectedStudent.projects || selectedStudent.projects.length === 0) &&
+                   (!selectedStudent.certifications || selectedStudent.certifications.length === 0) && (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">
+                          No additional information
+                        </h3>
+                        <p className="text-muted-foreground">
+                          This candidate hasn't added experience, projects, or certifications yet.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
