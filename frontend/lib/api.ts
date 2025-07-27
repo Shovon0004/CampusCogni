@@ -134,13 +134,9 @@ class ApiClient {
   }
 
   async applyToJob(jobId: string, userId: string) {
-    // Get user data to pass email
-    const userData = localStorage.getItem('userData')
-    const userEmail = userData ? JSON.parse(userData).email : null
-    
     return this.request(`/api/jobs/${jobId}/apply`, {
       method: 'POST',
-      body: JSON.stringify({ userEmail, coverLetter: '' }),
+      body: JSON.stringify({ coverLetter: '' }),
     })
   }
 

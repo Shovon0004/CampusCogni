@@ -107,11 +107,30 @@ export default function JobsPage() {
       })
     } catch (error: any) {
       console.error('Failed to apply to job:', error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit application. Please try again.",
-        variant: "destructive"
-      })
+      
+      // Check if it's an eligibility error with details
+      if (error.details && error.details.length > 0) {
+        toast({
+          title: "Eligibility Requirements Not Met",
+          description: (
+            <div className="space-y-1">
+              <p>You don't meet the following requirements:</p>
+              <ul className="list-disc list-inside text-sm">
+                {error.details.map((detail: string, index: number) => (
+                  <li key={index}>{detail}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Application Failed",
+          description: error.message || "Failed to submit application. Please try again.",
+          variant: "destructive"
+        })
+      }
     }
   }
 
@@ -287,7 +306,15 @@ export default function JobsPage() {
                             {job.recruiter?.company || 'Company Name'}
                           </span>
                         </div>
-                        <h3 className="text-xl font-semibold mb-2">{job.title}</h3>
+                        <h3 className="text-xl font-semibold mb-2">
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto font-semibold text-xl text-left justify-start"
+                            onClick={() => router.push(`/jobs/${job.id}`)}
+                          >
+                            {job.title}
+                          </Button>
+                        </h3>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                           <div className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
@@ -316,6 +343,13 @@ export default function JobsPage() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 ml-4">
+                        <Button
+                          onClick={() => router.push(`/jobs/${job.id}`)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          View Details
+                        </Button>
                         <Button
                           onClick={() => handleApplyToJob(job.id)}
                           disabled={job.applied}

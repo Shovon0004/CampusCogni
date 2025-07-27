@@ -191,9 +191,6 @@ class CachedApiClient {
 
   async applyToJob(jobId: string, userId: string): Promise<any> {
     try {
-      // First get the user's email since the backend expects userEmail
-      const userProfile = await this.getUserProfile(userId);
-      
       const response = await fetch(`${this.baseURL}/api/jobs/${jobId}/apply`, {
         method: 'POST',
         headers: {
@@ -201,13 +198,16 @@ class CachedApiClient {
           'Authorization': `Bearer ${this.getToken()}`,
         },
         body: JSON.stringify({ 
-          userEmail: userProfile.user?.email || userProfile.email,
-          coverLetter: '' // Default empty cover letter
+          coverLetter: '' // Default empty cover letter for now
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        // Create a custom error object with details for eligibility issues
+        const error = new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        (error as any).details = errorData.details || [];
+        throw error;
       }
 
       const result = await response.json();
