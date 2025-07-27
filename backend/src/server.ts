@@ -20,6 +20,7 @@ import profileUploadRoutes from './routes/profile-upload'
 import aiCandidateSearchRoutes from './routes/ai-candidate-search';
 import aiProfileSummaryRoutes from './routes/ai-profile-summary';
 import aiCandidateQaRoutes from './routes/ai-candidate-qa';
+import aiCandidateCompareRoutes from './routes/ai-candidate-compare';
 import projectRoutes from './routes/projects';
 import experienceRoutes from './routes/experiences';
 import certificationRoutes from './routes/certifications';
@@ -261,6 +262,7 @@ app.use('/api/profile-upload', profileUploadRoutes)
 app.use('/api/ai-candidate-search', aiCandidateSearchRoutes)
 app.use('/api/ai-profile-summary', aiProfileSummaryRoutes)
 app.use('/api/ai-candidate-qa', aiCandidateQaRoutes)
+app.use('/api/ai-candidate-compare', aiCandidateCompareRoutes)
 app.use('/api/projects', projectRoutes)
 app.use('/api/experiences', experienceRoutes)
 app.use('/api/certifications', certificationRoutes)

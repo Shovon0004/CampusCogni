@@ -677,4 +677,131 @@ Remember, your response will be parsed by an automated system that extracts skil
   return { answer };
 }
 
+// Compare multiple candidates based on a prompt
+export async function compareCandidates(candidates: any[], prompt: string) {
+  // Build a comparison-specific system prompt
+  const systemPrompt = `You are an AI assistant helping recruiters compare and rank candidates. Analyze the provided candidates based on the comparison criteria and provide detailed insights.
+
+Comparison Request: "${prompt}"
+
+Candidate Data:
+${candidates.map((c, i) => `Candidate ${i+1}: 
+Name: ${c.firstName} ${c.lastName}
+Email: ${c.email}
+College: ${c.college}
+Course: ${c.course}
+Year: ${c.year}
+CGPA: ${c.cgpa}
+Skills: ${(c.skills || []).join(', ')}
+Experience: ${c.experience || 'No experience listed'}
+Bio: ${c.bio || 'No bio provided'}
+Projects: ${(c.projects || []).map((p: any) => `${p.title}: ${p.description}`).join('; ')}
+Work Experience: ${(c.experiences || []).map((e: any) => `${e.role} at ${e.company} (${e.startDate} - ${e.endDate || 'Present'})`).join('; ')}
+Certifications: ${(c.certifications || []).map((cert: any) => `${cert.name} from ${cert.issuer}`).join('; ')}
+`).join('\n\n')}
+
+COMPARISON REQUIREMENTS:
+1. **Provide a detailed comparison** addressing the specific criteria mentioned in the prompt
+2. **Rank the candidates** from best to worst fit based on the criteria
+3. **Use markdown formatting** with clear headings and tables
+4. **Highlight key differentiators** between candidates
+5. **Provide reasoning** for your rankings
+
+FORMAT YOUR RESPONSE WITH:
+- **Executive Summary** of the comparison
+- **Detailed Analysis** for each candidate
+- **Comparison Table** showing key metrics
+- **Final Rankings** with justification
+- **Recommendations** for hiring decisions`;
+
+  let comparison = null;
+  
+  // Try Gemini API first
+  if (CANDIDATE_INFO_API_KEYS.length > 0) {
+    for (const apiKey of CANDIDATE_INFO_API_KEYS) {
+      try {
+        console.log("Attempting candidate comparison with Gemini API...");
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+          {
+            contents: [
+              {
+                parts: [{ text: systemPrompt }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 4096,
+            }
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 30000
+          }
+        );
+
+        const geminiResponse = response.data as GeminiResponse;
+        if (geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          comparison = geminiResponse.candidates[0].content.parts[0].text;
+          console.log("✅ Gemini API candidate comparison successful");
+          break;
+        }
+      } catch (error: any) {
+        console.log(`❌ Gemini API attempt failed:`, error.response?.data?.error?.message || error.message);
+        continue;
+      }
+    }
+  }
+
+  // Try Groq API as fallback
+  if (!comparison && GROQ_API_KEYS.length > 0) {
+    for (const apiKey of GROQ_API_KEYS) {
+      try {
+        console.log("Attempting candidate comparison with Groq API...");
+        const response = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            model: "llama-3.1-70b-versatile",
+            messages: [
+              {
+                role: "user",
+                content: systemPrompt
+              }
+            ],
+            temperature: 0.7,
+            max_tokens: 4096
+          },
+          {
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json"
+            },
+            timeout: 30000
+          }
+        );
+
+        const groqResponse = response.data as GroqResponse;
+        if (groqResponse?.choices?.[0]?.message?.content) {
+          comparison = groqResponse.choices[0].message.content;
+          console.log("✅ Groq API candidate comparison successful");
+          break;
+        }
+      } catch (error: any) {
+        console.log(`❌ Groq API attempt failed:`, error.response?.data?.error?.message || error.message);
+        continue;
+      }
+    }
+  }
+  
+  // If all API attempts failed
+  if (!comparison) {
+    console.error("All API attempts failed for candidate comparison");
+    comparison = "I'm sorry, but I encountered an error while comparing the candidates. Please try again later.";
+  }
+  
+  return { comparison };
+}
+
 export { getExpandedSkills }; 
