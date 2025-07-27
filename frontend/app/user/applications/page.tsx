@@ -71,7 +71,7 @@ export default function UserApplicationsPage() {
       
       // Fetch user applications from backend
       const response = await apiClient.getUserApplications(user!.id)
-      const userApplications = response.data || []
+      const userApplications = response || []
       
       // Transform the data to match the expected format
       const transformedApplications: Application[] = userApplications.map((app: any) => ({
