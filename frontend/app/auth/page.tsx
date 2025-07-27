@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Chrome, Mail, Lock, User } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -198,5 +198,41 @@ export default function AuthPage() {
 
       <Footer />
     </div>
+  )
+}
+
+// Loading component for Suspense fallback
+function AuthPageLoading() {
+  return (
+    <div className="min-h-screen">
+      <GridBackground />
+      <FloatingNavbar />
+      <div className="container mx-auto px-4 py-24 flex items-center justify-center min-h-screen">
+        <div className="w-full max-w-md">
+          <div className="backdrop-blur-xl bg-background/80 border-0 shadow-2xl rounded-xl p-8 animate-pulse">
+            <div className="text-center pb-8">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary/10" />
+              <div className="h-8 bg-muted rounded mb-2" />
+              <div className="h-4 bg-muted rounded w-2/3 mx-auto" />
+            </div>
+            <div className="space-y-4">
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-10 bg-muted rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<AuthPageLoading />}>
+      <AuthPageContent />
+    </Suspense>
   )
 }
