@@ -96,20 +96,26 @@ router.get('/', async (req: any, res: any) => {
         },
         include: {
           student: {
-            select: {
-              firstName: true,
-              lastName: true,
-              college: true,
-              course: true,
-              year: true,
-              cgpa: true,
-              resumeUrl: true,
-              skills: true,
-              profilePic: true,
+            include: {
+              user: {
+                select: {
+                  email: true,
+                },
+              },
+              projects: {
+                orderBy: { startDate: 'desc' },
+              },
+              experiences: {
+                orderBy: { startDate: 'desc' },
+              },
+              certifications: {
+                orderBy: { dateObtained: 'desc' },
+              },
             },
           },
           job: {
             select: {
+              id: true,
               title: true,
               type: true,
               location: true,

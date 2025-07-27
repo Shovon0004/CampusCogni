@@ -273,7 +273,7 @@ class CachedApiClient {
     }
     
     return this.fetchWithCache(
-      `/api/recruiters/profile/${userId}`,
+      `/api/recruiters/${userId}`,
       cacheKey,
       {},
       10 * 60 * 1000 // 10 minutes
@@ -295,6 +295,42 @@ class CachedApiClient {
     );
   }
 
+  // Get recruiter applications
+  async getRecruiterApplications(recruiterId: string, forceRefresh = false): Promise<any> {
+    const cacheKey = `recruiter_applications_${recruiterId}`;
+    
+    if (forceRefresh) {
+      dataCache.invalidate(cacheKey);
+    }
+    
+    return this.fetchWithCache(
+      `/api/applications?recruiterId=${recruiterId}`,
+      cacheKey,
+      {},
+      2 * 60 * 1000 // 2 minutes
+    );
+  }
+
+  // Update application status
+  async updateApplicationStatus(applicationId: string, status: string): Promise<any> {
+    const response = await this.fetchFresh(
+      `/api/applications/${applicationId}/status`,
+      `application_status_${applicationId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      }
+    );
+
+    // Invalidate related cache
+    const recruiterId = this.getCurrentUserId();
+    if (recruiterId) {
+      dataCache.invalidate(`recruiter_applications_${recruiterId}`);
+    }
+    
+    return response;
+  }
+
   // User role management
   async updateUserRole(userId: string, currentRole: string): Promise<any> {
     const response = await this.fetchFresh(
@@ -310,6 +346,306 @@ class CachedApiClient {
     this.refreshUserData(userId);
     
     return response;
+  }
+
+  // Projects Methods
+  async getStudentProjects(studentId: string, forceRefresh = false): Promise<any> {
+    const cacheKey = CacheKeys.USER_PROFILE(studentId);
+    
+    if (forceRefresh) {
+      dataCache.invalidate(cacheKey);
+    }
+    
+    return this.fetchWithCache(
+      `/api/projects/student/${studentId}`,
+      `projects_${studentId}`,
+      {},
+      5 * 60 * 1000 // 5 minutes
+    );
+  }
+
+  async createProject(projectData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create project: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      dataCache.invalidate(`projects_${projectData.studentId}`);
+      dataCache.invalidate(CacheKeys.USER_PROFILE(projectData.studentId));
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+  }
+
+  async updateProject(projectId: string, projectData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(projectData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update project: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`projects_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete project: ${response.statusText}`);
+      }
+
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`projects_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+  }
+
+  // Experiences Methods
+  async getStudentExperiences(studentId: string, forceRefresh = false): Promise<any> {
+    const cacheKey = CacheKeys.USER_PROFILE(studentId);
+    
+    if (forceRefresh) {
+      dataCache.invalidate(cacheKey);
+    }
+    
+    return this.fetchWithCache(
+      `/api/experiences/student/${studentId}`,
+      `experiences_${studentId}`,
+      {},
+      5 * 60 * 1000 // 5 minutes
+    );
+  }
+
+  async createExperience(experienceData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/experiences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(experienceData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create experience: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      dataCache.invalidate(`experiences_${experienceData.studentId}`);
+      dataCache.invalidate(CacheKeys.USER_PROFILE(experienceData.studentId));
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating experience:', error);
+      throw error;
+    }
+  }
+
+  async updateExperience(experienceId: string, experienceData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/experiences/${experienceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(experienceData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update experience: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`experiences_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating experience:', error);
+      throw error;
+    }
+  }
+
+  async deleteExperience(experienceId: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/experiences/${experienceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete experience: ${response.statusText}`);
+      }
+
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`experiences_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+    } catch (error) {
+      console.error('Error deleting experience:', error);
+      throw error;
+    }
+  }
+
+  // Certifications Methods
+  async getStudentCertifications(studentId: string, forceRefresh = false): Promise<any> {
+    const cacheKey = CacheKeys.USER_PROFILE(studentId);
+    
+    if (forceRefresh) {
+      dataCache.invalidate(cacheKey);
+    }
+    
+    return this.fetchWithCache(
+      `/api/certifications/student/${studentId}`,
+      `certifications_${studentId}`,
+      {},
+      5 * 60 * 1000 // 5 minutes
+    );
+  }
+
+  async createCertification(certificationData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/certifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(certificationData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create certification: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      dataCache.invalidate(`certifications_${certificationData.studentId}`);
+      dataCache.invalidate(CacheKeys.USER_PROFILE(certificationData.studentId));
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating certification:', error);
+      throw error;
+    }
+  }
+
+  async updateCertification(certificationId: string, certificationData: any): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/certifications/${certificationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+        body: JSON.stringify(certificationData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update certification: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`certifications_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error updating certification:', error);
+      throw error;
+    }
+  }
+
+  async deleteCertification(certificationId: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseURL}/api/certifications/${certificationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete certification: ${response.statusText}`);
+      }
+
+      // Invalidate related cache
+      const currentUser = this.getCurrentUserId();
+      if (currentUser) {
+        dataCache.invalidate(`certifications_${currentUser}`);
+        dataCache.invalidate(CacheKeys.USER_PROFILE(currentUser));
+      }
+    } catch (error) {
+      console.error('Error deleting certification:', error);
+      throw error;
+    }
   }
 
   // Utility Methods
