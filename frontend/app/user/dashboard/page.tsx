@@ -311,9 +311,15 @@ export default function UserDashboard() {
                           icon={<Building className="h-4 w-4 text-purple-500" />}
                           status={job.applied ? 'Applied' : 'Not Applied'}
                           meta={`${job.stipend ? `₹${job.stipend.toLocaleString()}` : 'Stipend not disclosed'} • ${job.location}`}
-                          cta="Apply Now →"
+                          cta={job.applied ? "View Application →" : "Apply Now →"}
                           onClick={() => {
-                            window.open(`/jobs/${job.id}`, '_blank');
+                            if (job.applied) {
+                              // Navigate to applications page with this job highlighted
+                              window.open(`/user/applications`, '_blank');
+                            } else {
+                              // Navigate to job details to apply
+                              window.open(`/jobs/${job.id}`, '_blank');
+                            }
                           }}
                         >
                           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">

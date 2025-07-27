@@ -382,9 +382,14 @@ export default function JobDetailsPage() {
                     {applying ? "Submitting..." : "Apply Now"}
                   </Button>
                 ) : hasApplied ? (
-                  <Button disabled className="w-full mt-4" size="lg">
+                  <Button 
+                    onClick={() => router.push('/user/applications')} 
+                    className="w-full mt-4" 
+                    size="lg"
+                    variant="outline"
+                  >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Applied
+                    View Application
                   </Button>
                 ) : deadlinePassed ? (
                   <Button disabled className="w-full mt-4" size="lg">

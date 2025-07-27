@@ -9,6 +9,30 @@ router.get('/', async (req: any, res: any) => {
   try {
     const { search, type, workMode, page = 1, limit = 10 } = req.query
     
+    // Check if user is authenticated (optional)
+    let currentUserId: string | null = null
+    let currentUserStudent: any = null
+    
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const jwt = require('jsonwebtoken')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
+        currentUserId = decoded.userId
+        
+        // Get student info for application checking
+        if (currentUserId) {
+          currentUserStudent = await prisma.student.findUnique({
+            where: { userId: currentUserId }
+          })
+        }
+      } catch (tokenError) {
+        // Ignore token errors for optional authentication
+        console.log('Optional auth failed, continuing without user context')
+      }
+    }
+    
     const where: any = {
       status: 'ACTIVE',
       deadline: {
@@ -57,8 +81,31 @@ router.get('/', async (req: any, res: any) => {
 
     const total = await prisma.job.count({ where })
 
+    // Add application status for authenticated users
+    let jobsWithStatus = jobs
+    if (currentUserStudent) {
+      // Get all applications for this user
+      const userApplications = await prisma.application.findMany({
+        where: { studentId: currentUserStudent.id },
+        select: { jobId: true }
+      })
+      
+      const appliedJobIds = new Set(userApplications.map(app => app.jobId))
+      
+      jobsWithStatus = jobs.map(job => ({
+        ...job,
+        applied: appliedJobIds.has(job.id)
+      }))
+    } else {
+      // Add applied: false for non-authenticated users
+      jobsWithStatus = jobs.map(job => ({
+        ...job,
+        applied: false
+      }))
+    }
+
     res.json({
-      jobs,
+      jobs: jobsWithStatus,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -147,6 +194,30 @@ router.post(
 // Get job by ID
 router.get('/:id', async (req: any, res: any) => {
   try {
+    // Check if user is authenticated (optional)
+    let currentUserId: string | null = null
+    let currentUserStudent: any = null
+    
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const jwt = require('jsonwebtoken')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
+        currentUserId = decoded.userId
+        
+        // Get student info for application checking
+        if (currentUserId) {
+          currentUserStudent = await prisma.student.findUnique({
+            where: { userId: currentUserId }
+          })
+        }
+      } catch (tokenError) {
+        // Ignore token errors for optional authentication
+        console.log('Optional auth failed, continuing without user context')
+      }
+    }
+
     const job = await prisma.job.findUnique({
       where: { id: req.params.id },
       include: {
@@ -172,7 +243,28 @@ router.get('/:id', async (req: any, res: any) => {
       return res.status(404).json({ error: 'Job not found' })
     }
 
-    res.json(job)
+    // Add application status for authenticated users
+    let jobWithStatus: any = job
+    if (currentUserStudent) {
+      const userApplication = await prisma.application.findFirst({
+        where: { 
+          studentId: currentUserStudent.id,
+          jobId: job.id
+        }
+      })
+      
+      jobWithStatus = {
+        ...job,
+        applied: !!userApplication
+      }
+    } else {
+      jobWithStatus = {
+        ...job,
+        applied: false
+      }
+    }
+
+    res.json(jobWithStatus)
   } catch (error) {
     console.error('Error fetching job:', error)
     res.status(500).json({ error: 'Internal server error' })

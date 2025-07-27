@@ -351,11 +351,18 @@ export default function JobsPage() {
                           View Details
                         </Button>
                         <Button
-                          onClick={() => handleApplyToJob(job.id)}
-                          disabled={job.applied}
+                          onClick={() => {
+                            if (job.applied) {
+                              router.push('/user/applications');
+                            } else {
+                              handleApplyToJob(job.id);
+                            }
+                          }}
+                          disabled={false}
                           size="sm"
+                          variant={job.applied ? "outline" : "default"}
                         >
-                          {job.applied ? 'Applied' : 'Apply Now'}
+                          {job.applied ? 'View Application' : 'Apply Now'}
                         </Button>
                         <Button variant="outline" size="sm">
                           <Heart className="h-4 w-4" />
