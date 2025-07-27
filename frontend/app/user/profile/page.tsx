@@ -42,6 +42,10 @@ import {
 } from "lucide-react"
 import { SkillsAutocomplete } from "@/components/ui/skills-autocomplete"
 import { ProfilePictureUpload } from "@/components/profile-picture-upload"
+import ProjectManagement from "@/components/project-management"
+import ExperienceManagement from "@/components/experience-management"
+import CertificationManagement from "@/components/certification-management"
+import { cachedApiClient } from "@/lib/cached-api-client"
 
 interface UserProfile {
   id: string
@@ -117,6 +121,9 @@ export default function UserProfilePage() {
   })
   const [education, setEducation] = useState<Education[]>([])
   const [workExperience, setWorkExperience] = useState<Experience[]>([])
+  const [projects, setProjects] = useState<any[]>([])
+  const [experiences, setExperiences] = useState<any[]>([])
+  const [certifications, setCertifications] = useState<any[]>([])
   const [newSkill, setNewSkill] = useState("")
   const [newProject, setNewProject] = useState("")
   const [newAchievement, setNewAchievement] = useState("")
@@ -196,6 +203,17 @@ export default function UserProfilePage() {
 
       setEducation(educationData)
       setWorkExperience(experienceData)
+
+      // Fetch projects, experiences, and certifications
+      const [projectsData, experiencesData, certificationsData] = await Promise.all([
+        cachedApiClient.getStudentProjects(userProfile.id),
+        cachedApiClient.getStudentExperiences(userProfile.id),
+        cachedApiClient.getStudentCertifications(userProfile.id)
+      ])
+
+      setProjects(projectsData || [])
+      setExperiences(experiencesData || [])
+      setCertifications(certificationsData || [])
     } catch (error) {
       console.error("Error fetching profile:", error)
       toast({
@@ -666,49 +684,39 @@ export default function UserProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Work Experience */}
+          {/* Work Experience Management */}
           <Card className="mb-8 backdrop-blur-sm bg-background/95">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5" />
-                Work Experience
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {workExperience.map((exp) => (
-                  <div key={exp.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          {exp.position}
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          {exp.company}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {exp.startDate} - {exp.endDate}
-                        </p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                          {exp.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Skills:
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {exp.skills.map((skill, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardContent className="pt-6">
+              <ExperienceManagement
+                studentId={profile.id}
+                experiences={experiences}
+                onExperiencesUpdate={setExperiences}
+                isEditing={isEditing}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Projects Management */}
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
+            <CardContent className="pt-6">
+              <ProjectManagement
+                studentId={profile.id}
+                projects={projects}
+                onProjectsUpdate={setProjects}
+                isEditing={isEditing}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Certifications Management */}
+          <Card className="mb-8 backdrop-blur-sm bg-background/95">
+            <CardContent className="pt-6">
+              <CertificationManagement
+                studentId={profile.id}
+                certifications={certifications}
+                onCertificationsUpdate={setCertifications}
+                isEditing={isEditing}
+              />
             </CardContent>
           </Card>
 

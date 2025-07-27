@@ -20,6 +20,9 @@ import profileUploadRoutes from './routes/profile-upload'
 import aiCandidateSearchRoutes from './routes/ai-candidate-search';
 import aiProfileSummaryRoutes from './routes/ai-profile-summary';
 import aiCandidateQaRoutes from './routes/ai-candidate-qa';
+import projectRoutes from './routes/projects';
+import experienceRoutes from './routes/experiences';
+import certificationRoutes from './routes/certifications';
 
 // Load environment variables
 dotenv.config()
@@ -256,6 +259,9 @@ app.use('/api/profile-upload', profileUploadRoutes)
 app.use('/api/ai-candidate-search', aiCandidateSearchRoutes)
 app.use('/api/ai-profile-summary', aiProfileSummaryRoutes)
 app.use('/api/ai-candidate-qa', aiCandidateQaRoutes)
+app.use('/api/projects', projectRoutes)
+app.use('/api/experiences', experienceRoutes)
+app.use('/api/certifications', certificationRoutes)
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
