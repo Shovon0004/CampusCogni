@@ -14,6 +14,8 @@ import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import "../../../app/recruiter/candidate-search/minimal-chat.css";
+import DynamicSkillVisualization from "@/components/dynamic-skill-visualization";
+import ErrorBoundary from "@/components/error-boundary";
 
 interface Message {
   role: "user" | "assistant";
@@ -67,6 +69,65 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       text.toLowerCase().includes(keyword.toLowerCase())
     );
   };
+  
+  // Helper function to sanitize and validate visualization data
+  const sanitizeVisualizationData = (data: any, type: 'skills' | 'comparison'): any => {
+    try {
+      if (!data) return null;
+      
+      if (type === 'skills') {
+        // Ensure skills data is an object with string keys and number values
+        const sanitized: Record<string, number> = {};
+        
+        // If data is not an object, return empty object
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+          return {};
+        }
+        
+        // Copy only valid entries (string key, number value between 0-10)
+        Object.entries(data).forEach(([key, value]) => {
+          if (typeof key === 'string' && typeof value === 'number' && !isNaN(value) && 
+              value >= 0 && value <= 10) {
+            sanitized[key] = value;
+          }
+        });
+        
+        return sanitized;
+      }
+      
+      if (type === 'comparison') {
+        // Deep clone to avoid mutation
+        const sanitized = JSON.parse(JSON.stringify(data));
+        
+        // Ensure minimum valid structure
+        if (!sanitized.overall) sanitized.overall = [];
+        if (!sanitized.skills) sanitized.skills = [];
+        if (!sanitized.experience) sanitized.experience = [];
+        
+        // Validate overall entries
+        sanitized.overall = (sanitized.overall || [])
+          .filter((item: any) => item && typeof item.name === 'string' && 
+                  typeof item.score === 'number' && !isNaN(item.score));
+        
+        // Validate skills entries
+        sanitized.skills = (sanitized.skills || [])
+          .filter((item: any) => item && typeof item.skill === 'string' && Array.isArray(item.candidates))
+          .map((item: any) => ({
+            skill: item.skill,
+            candidates: (item.candidates || []).filter((c: any) => 
+              c && typeof c.name === 'string' && typeof c.score === 'number' && !isNaN(c.score)
+            )
+          }));
+        
+        return sanitized;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error("Error sanitizing visualization data:", error);
+      return null;
+    }
+  };
 
   // Helper to detect skill analysis requests
   const isSkillAnalysisRequest = (text: string): boolean => {
@@ -83,6 +144,10 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
   // Helper function to extract skill ratings from AI text response
   const extractSkillRatings = (text: string): Record<string, number> | null => {
     try {
+      // Add a timeout to prevent infinite loops
+      const startTime = Date.now();
+      const timeout = 5000; // 5 seconds timeout
+      
       // Common programming skills to look for (improves accuracy)
       const commonSkills = [
         "JavaScript", "TypeScript", "Python", "Java", "C#", "C\\+\\+", "Ruby", "PHP", "Swift", "Kotlin", 
@@ -95,6 +160,13 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       
       const skills: Record<string, number> = {};
       
+      // Check timeout function
+      const checkTimeout = () => {
+        if (Date.now() - startTime > timeout) {
+          throw new Error('Skill extraction timeout');
+        }
+      };
+      
       // First, try to detect markdown tables which are the most reliable source
       const tableRows = text.split('\n').filter(line => line.includes('|'));
       
@@ -105,6 +177,8 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         const dataRows = tableRows.slice(2);
         
         for (const row of dataRows) {
+          checkTimeout(); // Check for timeout
+          
           const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
           
           if (cells.length >= 2) {
@@ -149,110 +223,76 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       
       // If no skills were extracted from tables or not enough, try regex patterns
       if (Object.keys(skills).length < 3) {
-        // Stronger pattern for skill rating extraction (prioritizes markdown formats like `JavaScript`: 8/10)
-        const patternTypes = [
-          // Markdown style with backticks: `JavaScript`: 9/10
-          new RegExp(`\`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\`\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+        checkTimeout(); // Check for timeout
+        
+        // Simplified and safer regex patterns
+        const safePatterns = [
+          // Simple colon format: JavaScript: 8/10 or JavaScript: 8
+          /(\w+(?:\+\+|#|\.js|\.ts)?)\s*[:\-]\s*(\d+)(?:\s*[\/\\]\s*(\d+))?/gi,
           
-          // Bold style with asterisks: **JavaScript**: 9/10
-          new RegExp(`\\*\\*(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\*\\*\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi'),
+          // Backtick format: `JavaScript`: 8/10
+          /`([^`]+)`\s*[:\-]\s*(\d+)(?:\s*[\/\\]\s*(\d+))?/gi,
           
-          // List item with rating: - JavaScript: 9/10 or * JavaScript: 9/10
-          new RegExp(`(?:^|\\n)\\s*[\\-\\*•]\\s*(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gim'),
-          
-          // Standard format: JavaScript: 9/10
-          new RegExp(`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'gi')
+          // Parentheses format: JavaScript (8/10)
+          /(\w+(?:\+\+|#|\.js|\.ts)?)\s*\((\d+)(?:\s*[\/\\]\s*(\d+))?\)/gi
         ];
         
-        // Try each pattern type in priority order
-        for (const regex of patternTypes) {
-          const matches = [...text.matchAll(regex)];
+        for (const pattern of safePatterns) {
+          checkTimeout(); // Check for timeout
           
-          matches.forEach(match => {
-            const skillName = match[1].trim().replace(/[`*]/g, '');  // Remove any markdown symbols
+          let match;
+          let matchCount = 0;
+          const maxMatches = 50; // Prevent infinite matching
+          
+          while ((match = pattern.exec(text)) !== null && matchCount < maxMatches) {
+            matchCount++;
+            checkTimeout(); // Check for timeout
+            
+            const skillName = match[1].trim();
             
             // Skip non-skill words
             const nonSkillWords = ['rating', 'score', 'overall', 'total', 'average', 'summary', 'conclusion'];
-            if (nonSkillWords.some(word => skillName.toLowerCase().includes(word))) return;
+            if (nonSkillWords.some(word => skillName.toLowerCase().includes(word))) {
+              continue;
+            }
             
             const rating = parseInt(match[2], 10);
             const maxRating = match[3] ? parseInt(match[3], 10) : 10;
             
             // Normalize to a scale of 10
             let normalizedRating = (rating / maxRating) * 10;
-            normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
+            normalizedRating = Math.round(normalizedRating * 10) / 10;
             
             // Only include if it looks like a valid skill and not already added
             if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
               skills[skillName] = normalizedRating;
             }
-          });
+            
+            // Prevent infinite loops by breaking if we have enough skills
+            if (Object.keys(skills).length >= 20) break;
+          }
+          
+          // Reset regex to prevent issues with global flag
+          pattern.lastIndex = 0;
         }
         
-        // Look for skills with ratings in parentheses: JavaScript (8/10)
-        const parenthesisPattern = new RegExp(`(${commonSkills.join('|')}|[A-Za-z0-9+#.\\-_/]+(?:\\s*[A-Za-z0-9+#.\\-_/]+)*)\\s*\\((\\d+)(?:\\s*\\/\\s*(\\d+))?\\)`, 'gi');
-        const parenthesisMatches = [...text.matchAll(parenthesisPattern)];
-        
-        parenthesisMatches.forEach(match => {
-          const skillName = match[1].trim();
-          const rating = parseInt(match[2], 10);
-          const maxRating = match[3] ? parseInt(match[3], 10) : 10;
+        // Simple check for common skills with ratings
+        for (const skill of commonSkills.slice(0, 20)) { // Limit to first 20 skills
+          checkTimeout(); // Check for timeout
           
-          // Normalize to a scale of 10
-          let normalizedRating = (rating / maxRating) * 10;
-          normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
-          
-          if (skillName.length > 1 && normalizedRating >= 0 && normalizedRating <= 10 && !skills[skillName]) {
-            skills[skillName] = normalizedRating;
-          }
-        });
-        
-        // Secondary check for skills mentioned in the text with rating nearby
-        for (const skill of commonSkills) {
           if (!skills[skill]) {
-            const skillRegexes = [
-              new RegExp(`${skill}[^.]*?(\\d+)\\s*\\/\\s*10`, 'i'),
-              new RegExp(`${skill}[^.]*?rated\\s*(?:at)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
-              new RegExp(`${skill}[^.]*?score\\s*(?:of)?\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
+            // Simple non-greedy patterns
+            const simplePatterns = [
+              new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]{0,50}?(\\d+)\\s*[/\\\\]\\s*10`, 'i'),
+              new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]{0,30}?\\b(\\d+)\\b`, 'i')
             ];
             
-            for (const regex of skillRegexes) {
+            for (const regex of simplePatterns) {
               const match = text.match(regex);
               if (match) {
                 const rating = parseInt(match[1], 10);
-                const maxRating = match[2] ? parseInt(match[2], 10) : 10;
-                
-                // Normalize to a scale of 10
-                let normalizedRating = (rating / maxRating) * 10;
-                normalizedRating = Math.round(normalizedRating * 10) / 10; // Round to 1 decimal
-                
-                skills[skill] = normalizedRating;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Look for word-based ratings like "Expert in JavaScript"
-        const wordRatings = [
-          { words: ['excellent', 'outstanding', 'exceptional', 'expert', 'mastery'], value: 9.5 },
-          { words: ['very good', 'strong', 'proficient', 'advanced'], value: 8.5 },
-          { words: ['good', 'solid', 'competent', 'capable'], value: 7.5 },
-          { words: ['fair', 'moderate', 'intermediate', 'average'], value: 6.5 },
-          { words: ['basic', 'beginner', 'elementary', 'limited'], value: 5.0 },
-          { words: ['poor', 'weak', 'minimal', 'novice'], value: 3.5 }
-        ];
-        
-        for (const skill of commonSkills) {
-          if (!skills[skill]) {
-            for (const { words, value } of wordRatings) {
-              for (const word of words) {
-                // Check patterns like "Expert in JavaScript" or "JavaScript: Expert"
-                const patternBefore = new RegExp(`${word}\\s+(?:in|with|at)\\s+${skill}`, 'i');
-                const patternAfter = new RegExp(`${skill}\\s*(?::|-)\\s*${word}`, 'i');
-                
-                if (patternBefore.test(text) || patternAfter.test(text)) {
-                  skills[skill] = value;
+                if (rating >= 0 && rating <= 10) {
+                  skills[skill] = rating;
                   break;
                 }
               }
@@ -295,6 +335,16 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
     try {
       if (candidateNames.length < 2) return null;
       
+      // Add timeout protection
+      const startTime = Date.now();
+      const timeout = 5000; // 5 seconds timeout
+      
+      const checkTimeout = () => {
+        if (Date.now() - startTime > timeout) {
+          throw new Error('Comparison data extraction timeout');
+        }
+      };
+      
       const comparisonData: ComparisonData = {
         overall: [],
         skills: [],
@@ -320,8 +370,10 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
           candidateScores[name] = {};
         });
         
-        // Process table cells
-        tableCells.forEach(match => {
+        // Process table cells with timeout protection
+        tableCells.forEach((match, index) => {
+          if (index % 10 === 0) checkTimeout(); // Check timeout every 10 iterations
+          
           const col1 = match[1].trim();
           const col2 = match[2].trim();
           
@@ -371,7 +423,9 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         });
         
         // Process skill comparisons from the table data
-        skillNames.forEach(skill => {
+        skillNames.forEach((skill, index) => {
+          if (index % 5 === 0) checkTimeout(); // Check timeout every 5 iterations
+          
           const candidates = candidateNames
             .filter(name => candidateScores[name][skill] !== undefined)
             .map(name => ({
@@ -393,13 +447,17 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
         console.log("Falling back to text-based rating extraction");
         
         // For each candidate, try to find overall ratings in the text
-        candidateNames.forEach(name => {
+        candidateNames.forEach((name, index) => {
+          if (index % 2 === 0) checkTimeout(); // Check timeout every 2 candidates
+          
           if (!comparisonData.overall.find(item => item.name === name)) {
+            // Escape special regex characters in candidate name
+            const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             // Look for patterns like "John: 8/10" or "John - 7" or "John scored 8 out of 10"
             const ratingPatterns = [
-              new RegExp(`${name}\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
-              new RegExp(`${name}[^.]*?(?:rated|scored|rating|score)\\s*(?:of|is|was)?\\s*(\\d+)(?:\\s*(?:out\\s*of|\\/)\\s*(\\d+))?`, 'i'),
-              new RegExp(`${name}[^.]*?(?:overall|rating|score):\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
+              new RegExp(`${escapedName}\\s*(?::|-)\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i'),
+              new RegExp(`${escapedName}[^.]*?(?:rated|scored|rating|score)\\s*(?:of|is|was)?\\s*(\\d+)(?:\\s*(?:out\\s*of|\\/)\\s*(\\d+))?`, 'i'),
+              new RegExp(`${escapedName}[^.]*?(?:overall|rating|score):\\s*(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i')
             ];
             
             let matched = false;
@@ -422,22 +480,25 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
             
             // If still not matched, look for sentiment indicators
             if (!matched) {
+              // Escape special regex characters in candidate name for string matching
+              const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              
               // Look for positive or negative sentiments
               const positiveIndicators = [
-                `${name} is better`, 
-                `${name} has stronger`,
-                `${name} excels`,
-                `${name} outperforms`,
-                `${name} stands out`,
+                `${escapedName} is better`, 
+                `${escapedName} has stronger`,
+                `${escapedName} excels`,
+                `${escapedName} outperforms`,
+                `${escapedName} stands out`,
                 `strongest candidate`,
                 `most qualified`
               ];
               
               const negativeIndicators = [
-                `${name} is weaker`,
-                `${name} lacks`,
-                `${name} has less`,
-                `${name} falls short`,
+                `${escapedName} is weaker`,
+                `${escapedName} lacks`,
+                `${escapedName} has less`,
+                `${escapedName} falls short`,
                 `less qualified`
               ];
               
@@ -469,13 +530,16 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       if (comparisonData.skills.length === 0) {
         // Common skills to look for
         const commonSkills = [
-          "JavaScript", "TypeScript", "Python", "Java", "C#", "C++", "Ruby", "PHP", 
+          "JavaScript", "TypeScript", "Python", "Java", "C#", "C\\+\\+", "Ruby", "PHP", 
           "React", "Angular", "Vue", "Node.js", "Frontend", "Backend", "DevOps",
           "Database", "SQL", "AWS", "Azure", "GCP", "Cloud", "Docker", "Kubernetes"
         ];
         
         // For each common skill, check if it's mentioned with candidates
-        commonSkills.forEach(skill => {
+        for (let i = 0; i < Math.min(commonSkills.length, 20); i++) {
+          checkTimeout();
+          
+          const skill = commonSkills[i];
           const skillMention = text.indexOf(skill);
           
           if (skillMention >= 0) {
@@ -488,16 +552,20 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
             // Look for candidate mentions in this section
             const candidatesWithRatings = [];
             
-            for (const name of candidateNames) {
+            for (let j = 0; j < Math.min(candidateNames.length, 10); j++) {
+              checkTimeout();
+              
+              const name = candidateNames[j];
               if (surroundingText.includes(name)) {
-                // Try to find a rating for this candidate and skill
-                const ratingPattern = new RegExp(`${name}[^.]*?${skill}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?|${skill}[^.]*?${name}[^.]*?(\\d+)(?:\\s*\\/\\s*(\\d+))?`, 'i');
-                const match = surroundingText.match(ratingPattern);
+                // Try to find a rating for this candidate and skill using simpler pattern
+                const skillPattern = new RegExp(`\\b${skill}\\b[^.]*?(\\d+)(?:/\\d+)?`, 'i');
+                const namePattern = new RegExp(`\\b${name}\\b[^.]*?(\\d+)(?:/\\d+)?`, 'i');
+                
+                let match = surroundingText.match(skillPattern) || surroundingText.match(namePattern);
                 
                 if (match) {
-                  const rating = parseInt(match[1] || match[3], 10);
-                  const maxRating = match[2] || match[4] ? parseInt(match[2] || match[4], 10) : 10;
-                  const normalizedRating = (rating / maxRating) * 10;
+                  const rating = parseInt(match[1], 10);
+                  const normalizedRating = Math.min(rating, 10); // Assume 10 max if not specified
                   
                   candidatesWithRatings.push({
                     name,
@@ -514,7 +582,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               });
             }
           }
-        });
+        }
       }
       
       // If we have enough data, return it
@@ -568,9 +636,29 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
       // Determine which API endpoint to use based on the query
       let response;
       
-      // Always use the Q&A API since the comparison API endpoint doesn't exist
-      // This will handle both general questions and comparison questions
-      response = await apiClient.askAboutCandidates(selectedCandidates, userQuery);
+      try {
+        // Always use the Q&A API since the comparison API endpoint doesn't exist
+        // This will handle both general questions and comparison questions
+        response = await apiClient.askAboutCandidates(selectedCandidates, userQuery);
+
+        if (!response || typeof response !== 'object') {
+          throw new Error("Invalid response format from AI service");
+        }
+      } catch (apiError) {
+        console.error("API request failed:", apiError);
+        // Remove typing indicator
+        setMessages(prev => prev.filter(msg => !msg.isTyping));
+        // Show error message to user
+        setMessages(prev => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Sorry, I encountered an error communicating with the AI service. Please try again."
+          }
+        ]);
+        setIsLoading(false);
+        return;
+      }
 
       // Remove the typing message
       setMessages(prev => prev.filter(msg => !msg.isTyping));
@@ -603,12 +691,12 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               content: response.summary || answer,
               visualData: {
                 type: "comparison",
-                data: {
+                data: sanitizeVisualizationData({
                   skills: comparisonData.skills || [],
                   experience: comparisonData.experience || [],
                   education: comparisonData.education || [],
                   overall: comparisonData.overall || []
-                }
+                }, 'comparison')
               }
             }
           ]);
@@ -622,7 +710,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               content: answer,
               visualData: {
                 type: "comparison",
-                data: extractedComparison
+                data: sanitizeVisualizationData(extractedComparison, 'comparison')
               }
             }
           ]);
@@ -657,7 +745,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
                 content: answer,
                 visualData: {
                   type: "comparison",
-                  data: comparisonData
+                  data: sanitizeVisualizationData(comparisonData, 'comparison')
                 }
               }
             ]);
@@ -683,7 +771,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               content: answer,
               visualData: {
                 type: "skills",
-                data: response.skills
+                data: sanitizeVisualizationData(response.skills, 'skills')
               }
             }
           ]);
@@ -697,7 +785,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
               content: answer,
               visualData: {
                 type: "skills",
-                data: extractedSkills
+                data: sanitizeVisualizationData(extractedSkills, 'skills')
               }
             }
           ]);
@@ -751,7 +839,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
                 content: answer,
                 visualData: {
                   type: "skills",
-                  data: candidateSkills
+                  data: sanitizeVisualizationData(candidateSkills, 'skills')
                 }
               }
             ]);
@@ -788,7 +876,7 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
                 content: answer,
                 visualData: {
                   type: "skills",
-                  data: extractedSkills
+                  data: sanitizeVisualizationData(extractedSkills, 'skills')
                 }
               }
             ]);
@@ -930,60 +1018,25 @@ export default function MinimalCandidateChat({ selectedCandidates = [] }: { sele
             {/* Render visual data if available */}
             {message.visualData && (
               <div className="mt-3 pt-3 border-t border-white/10">
-                {message.visualData.type === 'comparison' && (
-                  <div className="space-y-4">
-                    {message.visualData.data.overall && message.visualData.data.overall.length > 0 && (
-                      <ComparisonCard 
-                        title="Overall Comparison" 
-                        icon={<Award className="h-4 w-4" />}
-                        candidates={message.visualData.data.overall.map((item: any) => ({
-                          name: item.name,
-                          value: item.score,
-                          color: `bg-gradient-to-r from-gray-500 to-gray-600`
-                        }))}
-                      />
-                    )}
-                    
-                    {message.visualData.data.skills && message.visualData.data.skills.length > 0 && (
-                      <ComparisonCard 
-                        title="Technical Skills" 
-                        icon={<Code className="h-4 w-4" />}
-                        candidates={message.visualData.data.skills.map((item: any) => ({
-                          name: item.name,
-                          value: item.score,
-                          color: `bg-gradient-to-r from-gray-400 to-gray-500`
-                        }))}
-                      />
-                    )}
-                    
-                    {message.visualData.data.experience && message.visualData.data.experience.length > 0 && (
-                      <ComparisonCard 
-                        title="Experience" 
-                        icon={<Briefcase className="h-4 w-4" />}
-                        candidates={message.visualData.data.experience.map((item: any) => ({
-                          name: item.name,
-                          value: item.score,
-                          color: `bg-gradient-to-r from-gray-500 to-gray-600`
-                        }))}
-                      />
-                    )}
+                <ErrorBoundary fallback={
+                  <div className="p-2 rounded bg-[#2A2A2A] text-white/70 text-xs">
+                    Unable to display visualization data
                   </div>
-                )}
-                
-                {message.visualData.type === 'skills' && (
-                  <div className="space-y-3 mt-1">
-                    <h4 className="text-xs font-medium text-white/70">Skill Assessment:</h4>
-                    {Object.entries(message.visualData.data).map(([skill, score]: [string, any], idx) => (
-                      <SkillBar 
-                        key={idx}
-                        skillName={skill}
-                        value={typeof score === 'number' ? score : 0}
-                        maxValue={10}
-                        color={`bg-gradient-to-r from-gray-500 to-gray-600`}
-                      />
-                    ))}
-                  </div>
-                )}
+                }>
+                  {message.visualData.type === 'comparison' && (
+                    <DynamicSkillVisualization 
+                      data={sanitizeVisualizationData(message.visualData.data, 'comparison')}
+                      type="comparison"
+                    />
+                  )}
+                  
+                  {message.visualData.type === 'skills' && (
+                    <DynamicSkillVisualization 
+                      data={sanitizeVisualizationData(message.visualData.data, 'skills')}
+                      type="skills"
+                    />
+                  )}
+                </ErrorBoundary>
               </div>
             )}
           </div>

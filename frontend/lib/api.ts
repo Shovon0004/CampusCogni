@@ -210,10 +210,36 @@ class ApiClient {
   
   // Ask questions about candidates
   async askAboutCandidates(candidates: any[], question: string) {
-    return this.request('/ai-candidate-qa', {
-      method: 'POST',
-      body: JSON.stringify({ candidates, question }),
-    })
+    try {
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        throw new Error('Invalid candidates array');
+      }
+      
+      if (!question || typeof question !== 'string') {
+        throw new Error('Invalid question format');
+      }
+      
+      const response = await this.request('/ai-candidate-qa', {
+        method: 'POST',
+        body: JSON.stringify({ candidates, question }),
+      });
+      
+      // Add basic validation for the response structure
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response format from AI service');
+      }
+      
+      // Ensure answer exists or provide a default
+      if (!response.answer) {
+        response.answer = "I couldn't generate a response for this question. Please try asking a different question.";
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error in askAboutCandidates:', error);
+      // Re-throw for handling in the component
+      throw error;
+    }
   }
 
   // File Upload
