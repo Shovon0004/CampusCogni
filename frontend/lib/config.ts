@@ -13,17 +13,17 @@ export const getApiUrl = (): string => {
   
   // Development fallback
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:5000/api'
+    return 'http://localhost:5000'
   }
   
   // Production fallback (should not happen if env vars are set correctly)
   console.warn('⚠️ NEXT_PUBLIC_API_URL not set in production! Using fallback.')
-  return 'https://campuscogni.onrender.com/api'
+  return 'https://campuscogni.onrender.com'
 }
 
 // Get the base URL (without /api) for health checks
 export const getBaseUrl = (): string => {
-  return getApiUrl().replace('/api', '')
+  return getApiUrl()
 }
 
 // Get the Gemini API key

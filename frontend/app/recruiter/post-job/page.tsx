@@ -29,6 +29,8 @@ const PostJobPage: React.FC = () => {
   const [showProfileSetup, setShowProfileSetup] = useState(false)
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [selectedYears, setSelectedYears] = useState<string[]>([])
+  const [jobType, setJobType] = useState<string>("")
+  const [workMode, setWorkMode] = useState<string>("")
   const [recruiterProfile, setRecruiterProfile] = useState({
     company: "",
     jobTitle: "",
@@ -139,10 +141,31 @@ const PostJobPage: React.FC = () => {
       const form = e.target as HTMLFormElement
       const formData = new FormData(form)
       
+      // Validate required Select fields
+      if (!jobType) {
+        toast({
+          title: "Missing Field",
+          description: "Please select a job type",
+          variant: "destructive"
+        })
+        setIsLoading(false)
+        return
+      }
+      
+      if (!workMode) {
+        toast({
+          title: "Missing Field", 
+          description: "Please select a work mode",
+          variant: "destructive"
+        })
+        setIsLoading(false)
+        return
+      }
+      
       const jobData = {
         title: formData.get('jobTitle') as string,
-        type: formData.get('jobType') as string,
-        workMode: formData.get('workMode') as string,
+        type: jobType,
+        workMode: workMode,
         location: formData.get('location') as string,
         stipend: formData.get('stipend') as string,
         description: formData.get('description') as string,
@@ -153,6 +176,8 @@ const PostJobPage: React.FC = () => {
         eligibleCourses: selectedCourses,
         eligibleYears: selectedYears,
       }
+
+      console.log('Submitting job data:', jobData) // Debug log
 
       await apiClient.createJob(jobData)
       
@@ -359,7 +384,7 @@ const PostJobPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="jobType">Job Type</Label>
-                      <Select name="jobType" required>
+                      <Select value={jobType} onValueChange={setJobType} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Select job type" />
                         </SelectTrigger>
@@ -374,7 +399,7 @@ const PostJobPage: React.FC = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="workMode">Work Mode</Label>
-                      <Select name="workMode" required>
+                      <Select value={workMode} onValueChange={setWorkMode} required>
                         <SelectTrigger>
                           <SelectValue placeholder="Select work mode" />
                         </SelectTrigger>
