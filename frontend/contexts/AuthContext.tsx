@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Verify with backend that user still exists
       const apiUrl = getApiUrl()
       try {
-        const response = await fetch(`${apiUrl}/students/${userData.id}`, {
+        const response = await fetch(`${apiUrl}/api/students/${userData.id}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Use the proper backend login endpoint with environment variable
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = localStorage.getItem('token')
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/auth/upgrade-to-recruiter`, {
+      const response = await fetch(`${apiUrl}/api/auth/upgrade-to-recruiter`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

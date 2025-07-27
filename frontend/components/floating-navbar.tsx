@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { RandomThemeToggle } from "@/components/ui/random-theme-toggle"
 import { Menu, Briefcase, User, LogOut, Settings, Bell } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useUserProfile } from "@/hooks/use-user-profile"
 
 interface FloatingNavbarProps {
   userRole?: "USER" | "RECRUITER" | "BOTH" | null
@@ -29,6 +30,12 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  
+  // Get user profile data for avatar
+  const { profileData } = useUserProfile()
+  
+  // Use profile picture from hook if available, otherwise fall back to prop
+  const displayAvatar = profileData?.profilePic || userAvatar || "/placeholder.svg"
 
   useEffect(() => {
     const handleScroll = () => {
@@ -163,7 +170,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:bg-muted/50">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={userAvatar || "/placeholder.svg"} alt={userName} />
+                  <AvatarImage src={displayAvatar} alt={userName} />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     {userName?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>

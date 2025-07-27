@@ -9,6 +9,30 @@ router.get('/', async (req: any, res: any) => {
   try {
     const { search, type, workMode, page = 1, limit = 10 } = req.query
     
+    // Check if user is authenticated (optional)
+    let currentUserId: string | null = null
+    let currentUserStudent: any = null
+    
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const jwt = require('jsonwebtoken')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
+        currentUserId = decoded.userId
+        
+        // Get student info for application checking
+        if (currentUserId) {
+          currentUserStudent = await prisma.student.findUnique({
+            where: { userId: currentUserId }
+          })
+        }
+      } catch (tokenError) {
+        // Ignore token errors for optional authentication
+        console.log('Optional auth failed, continuing without user context')
+      }
+    }
+    
     const where: any = {
       status: 'ACTIVE',
       deadline: {
@@ -57,8 +81,31 @@ router.get('/', async (req: any, res: any) => {
 
     const total = await prisma.job.count({ where })
 
+    // Add application status for authenticated users
+    let jobsWithStatus = jobs
+    if (currentUserStudent) {
+      // Get all applications for this user
+      const userApplications = await prisma.application.findMany({
+        where: { studentId: currentUserStudent.id },
+        select: { jobId: true }
+      })
+      
+      const appliedJobIds = new Set(userApplications.map(app => app.jobId))
+      
+      jobsWithStatus = jobs.map(job => ({
+        ...job,
+        applied: appliedJobIds.has(job.id)
+      }))
+    } else {
+      // Add applied: false for non-authenticated users
+      jobsWithStatus = jobs.map(job => ({
+        ...job,
+        applied: false
+      }))
+    }
+
     res.json({
-      jobs,
+      jobs: jobsWithStatus,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -147,6 +194,30 @@ router.post(
 // Get job by ID
 router.get('/:id', async (req: any, res: any) => {
   try {
+    // Check if user is authenticated (optional)
+    let currentUserId: string | null = null
+    let currentUserStudent: any = null
+    
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const jwt = require('jsonwebtoken')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
+        currentUserId = decoded.userId
+        
+        // Get student info for application checking
+        if (currentUserId) {
+          currentUserStudent = await prisma.student.findUnique({
+            where: { userId: currentUserId }
+          })
+        }
+      } catch (tokenError) {
+        // Ignore token errors for optional authentication
+        console.log('Optional auth failed, continuing without user context')
+      }
+    }
+
     const job = await prisma.job.findUnique({
       where: { id: req.params.id },
       include: {
@@ -172,7 +243,28 @@ router.get('/:id', async (req: any, res: any) => {
       return res.status(404).json({ error: 'Job not found' })
     }
 
-    res.json(job)
+    // Add application status for authenticated users
+    let jobWithStatus: any = job
+    if (currentUserStudent) {
+      const userApplication = await prisma.application.findFirst({
+        where: { 
+          studentId: currentUserStudent.id,
+          jobId: job.id
+        }
+      })
+      
+      jobWithStatus = {
+        ...job,
+        applied: !!userApplication
+      }
+    } else {
+      jobWithStatus = {
+        ...job,
+        applied: false
+      }
+    }
+
+    res.json(jobWithStatus)
   } catch (error) {
     console.error('Error fetching job:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -180,80 +272,133 @@ router.get('/:id', async (req: any, res: any) => {
 })
 
 // Apply to job
-router.post('/:id/apply', async (req: any, res: any) => {
-  try {
-    const authHeader = req.headers['authorization']
-    const token = authHeader && authHeader.split(' ')[1]
+router.post('/:id/apply', 
+  authenticateToken,
+  requireRole(['USER', 'BOTH']),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user } = req as AuthenticatedRequest;
+      if (!user || !user.id) {
+        res.status(401).json({ error: 'Invalid or missing user authentication' });
+        return;
+      }
 
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' })
-    }
+      // Get student profile for the authenticated user
+      const student = await prisma.student.findUnique({
+        where: { userId: user.id }
+      });
+      
+      if (!student) {
+        res.status(404).json({ error: 'Student profile not found. Please complete your profile first.' });
+        return;
+      }
 
+      // Get job and its recruiter
+      const job = await prisma.job.findUnique({
+        where: { id: req.params.id },
+        include: { recruiter: true }
+      });
+      
+      if (!job) {
+        res.status(404).json({ error: 'Job not found' });
+        return;
+      }
 
-    // Get student and their userId
-    const student = await prisma.student.findFirst({
-      where: { user: { email: req.body.userEmail } },
-      include: { user: true }
-    });
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
+      // Check if job is still active and deadline hasn't passed
+      if (job.status !== 'ACTIVE') {
+        res.status(400).json({ error: 'This job is no longer accepting applications' });
+        return;
+      }
 
-    // Get job and its recruiter
-    const job = await prisma.job.findUnique({
-      where: { id: req.params.id },
-      include: { recruiter: true }
-    });
-    if (!job) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+      if (new Date() > job.deadline) {
+        res.status(400).json({ error: 'Application deadline has passed' });
+        return;
+      }
 
-    // Prevent user from applying to their own job
-    if (job.recruiter && student.user && job.recruiter.userId === student.user.id) {
-      return res.status(400).json({ error: "You cannot apply to a job you posted." });
-    }
+      // Prevent user from applying to their own job
+      if (job.recruiter.userId === user.id) {
+        res.status(400).json({ error: "You cannot apply to a job you posted" });
+        return;
+      }
 
-    // Check if already applied
-    const existingApplication = await prisma.application.findUnique({
-      where: {
-        studentId_jobId: {
+      // Check if already applied
+      const existingApplication = await prisma.application.findUnique({
+        where: {
+          studentId_jobId: {
+            studentId: student.id,
+            jobId: req.params.id,
+          },
+        },
+      });
+
+      if (existingApplication) {
+        res.status(400).json({ error: 'You have already applied to this job' });
+        return;
+      }
+
+      // Check eligibility criteria
+      const eligibilityErrors: string[] = [];
+
+      // Check course eligibility
+      if (job.eligibleCourses.length > 0 && !job.eligibleCourses.includes(student.course)) {
+        eligibilityErrors.push(`Your course (${student.course}) is not eligible for this position`);
+      }
+
+      // Check year eligibility  
+      if (job.eligibleYears.length > 0 && !job.eligibleYears.includes(student.year)) {
+        eligibilityErrors.push(`Your academic year (${student.year}) is not eligible for this position`);
+      }
+
+      // Check minimum CGPA requirement
+      if (job.minCGPA && student.cgpa < job.minCGPA) {
+        eligibilityErrors.push(`Minimum CGPA requirement is ${job.minCGPA}, but your CGPA is ${student.cgpa}`);
+      }
+
+      // If there are eligibility errors, return them
+      if (eligibilityErrors.length > 0) {
+        res.status(400).json({ 
+          error: 'You do not meet the eligibility criteria for this job',
+          details: eligibilityErrors
+        });
+        return;
+      }
+
+      // Create application
+      const application = await prisma.application.create({
+        data: {
           studentId: student.id,
           jobId: req.params.id,
+          coverLetter: req.body.coverLetter || '',
         },
-      },
-    })
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              course: true,
+              year: true,
+              cgpa: true,
+            },
+          },
+          job: {
+            select: {
+              title: true,
+              type: true,
+              workMode: true,
+            },
+          },
+        },
+      });
 
-    if (existingApplication) {
-      return res.status(400).json({ error: 'Already applied to this job' })
+      res.status(201).json({
+        message: 'Application submitted successfully',
+        application
+      });
+    } catch (error) {
+      console.error('Error applying to job:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-
-    // Create application
-    const application = await prisma.application.create({
-      data: {
-        studentId: student.id,
-        jobId: req.params.id,
-        coverLetter: req.body.coverLetter || '',
-      },
-      include: {
-        student: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-        job: {
-          select: {
-            title: true,
-          },
-        },
-      },
-    })
-
-    res.status(201).json(application)
-  } catch (error) {
-    console.error('Error applying to job:', error)
-    res.status(500).json({ error: 'Internal server error' })
   }
-})
+);
 
 export default router

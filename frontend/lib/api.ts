@@ -54,98 +54,94 @@ class ApiClient {
 
   // Authentication
   async registerUser(data: any) {
-    return this.request('/auth/register', {
+    return this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, role: 'USER' }),
     })
   }
 
   async registerRecruiter(data: any) {
-    return this.request('/auth/register', {
+    return this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, role: 'RECRUITER' }),
     })
   }
 
   async login(email: string, password: string) {
-    return this.request('/auth/login', {
+    return this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
   }
 
   async register(userData: any) {
-    return this.request('/auth/register', {
+    return this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     })
   }
 
   async updateUserRole(userId: string, oldRole?: string) {
-    return this.request(`/recruiters/check-role/${userId}`, {
+    return this.request(`/api/recruiters/check-role/${userId}`, {
       method: 'POST',
       body: JSON.stringify({ oldRole }),
     })
   }
 
   async debugUser(userId: string) {
-    return this.request(`/auth/debug/${userId}`)
+    return this.request(`/api/auth/debug/${userId}`)
   }
 
   // User APIs
   async getUserProfile(id: string) {
-    return this.request(`/students/${id}`)
+    return this.request(`/api/students/${id}`)
   }
 
   async updateUserProfile(id: string, data: any) {
-    return this.request(`/students/${id}`, {
+    return this.request(`/api/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   async getUserStats(userId: string) {
-    return this.request(`/students/${userId}/stats`)
+    return this.request(`/api/students/${userId}/stats`)
   }
 
   async getUserCV(userId: string) {
-    return this.request(`/students/${userId}/cv`)
+    return this.request(`/api/students/${userId}/cv`)
   }
 
   async updateUserCV(userId: string, cvData: any) {
-    return this.request(`/students/${userId}/cv`, {
+    return this.request(`/api/students/${userId}/cv`, {
       method: 'PUT',
       body: JSON.stringify(cvData),
     })
   }
 
   async getUserApplications(userId: string) {
-    return this.request(`/applications?userId=${userId}`)
+    return this.request(`/api/applications?userId=${userId}`)
   }
 
   // Job APIs
   async getJobs(filters?: any) {
     const params = new URLSearchParams(filters)
-    return this.request(`/jobs?${params}`)
+    return this.request(`/api/jobs?${params}`)
   }
 
   async getJob(id: string) {
-    return this.request(`/jobs/${id}`)
+    return this.request(`/api/jobs/${id}`)
   }
 
   async applyToJob(jobId: string, userId: string) {
-    // Get user data to pass email
-    const userData = localStorage.getItem('userData')
-    const userEmail = userData ? JSON.parse(userData).email : null
-    
-    return this.request(`/jobs/${jobId}/apply`, {
+    return this.request(`/api/jobs/${jobId}/apply`, {
       method: 'POST',
-      body: JSON.stringify({ userEmail, coverLetter: '' }),
+      body: JSON.stringify({ coverLetter: '' }),
     })
   }
 
   async createJob(jobData: any) {
-    return this.request('/jobs', {
+    return this.request('/api/jobs', {
       method: 'POST',
       body: JSON.stringify(jobData),
     })
@@ -153,31 +149,31 @@ class ApiClient {
 
   // Recruiter APIs
   async getRecruiterProfile(userId: string) {
-    return this.request(`/recruiters/${userId}`)
+    return this.request(`/api/recruiters/${userId}`)
   }
 
   async updateRecruiterProfile(userId: string, data: any) {
-    return this.request(`/recruiters/${userId}`, {
+    return this.request(`/api/recruiters/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   async getRecruiterJobs(recruiterId: string) {
-    return this.request(`/recruiters/${recruiterId}/jobs`)
+    return this.request(`/api/recruiters/${recruiterId}/jobs`)
   }
 
   async getRecruiterApplications(recruiterId: string) {
-    return this.request(`/applications?recruiterId=${recruiterId}`)
+    return this.request(`/api/applications?recruiterId=${recruiterId}`)
   }
 
   async getCollegeData() {
-    return this.request('/colleges')
+    return this.request('/api/colleges')
   }
 
   // Application APIs
   async updateApplicationStatus(applicationId: string, status: string) {
-    return this.request(`/applications/${applicationId}/status`, {
+    return this.request(`/api/applications/${applicationId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     })
@@ -185,7 +181,7 @@ class ApiClient {
 
   // AI Candidate Search
   async searchCandidates(prompt: string, mode: "normal" | "reasoning" = "normal") {
-    return this.request('/ai-candidate-search', {
+    return this.request('/api/ai-candidate-search', {
       method: 'POST',
       body: JSON.stringify({ prompt, mode }),
     })
@@ -193,7 +189,7 @@ class ApiClient {
 
   // AI Profile Summary
   async getProfileSummary(candidate: any, prompt: string) {
-    return this.request('/ai-profile-summary', {
+    return this.request('/api/ai-profile-summary', {
       method: 'POST',
       body: JSON.stringify({ candidate, prompt }),
     })
@@ -202,7 +198,7 @@ class ApiClient {
   // AI Candidate Comparison (using the Q&A endpoint since comparison endpoint doesn't exist)
   async compareCandidates(candidates: any[], prompt: string) {
     // Use the Q&A endpoint with a comparison question
-    return this.request('/ai-candidate-qa', {
+    return this.request('/api/ai-candidate-qa', {
       method: 'POST',
       body: JSON.stringify({ candidates, question: prompt }),
     })
@@ -219,7 +215,7 @@ class ApiClient {
         throw new Error('Invalid question format');
       }
       
-      const response = await this.request('/ai-candidate-qa', {
+      const response = await this.request('/api/ai-candidate-qa', {
         method: 'POST',
         body: JSON.stringify({ candidates, question }),
       });
@@ -248,7 +244,7 @@ class ApiClient {
     formData.append('file', file)
     formData.append('folder', folder)
 
-    const response = await fetch(`${this.baseUrl}/upload`, {
+    const response = await fetch(`${this.baseUrl}/api/upload`, {
       method: 'POST',
       body: formData,
     })
