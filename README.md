@@ -423,7 +423,7 @@ POST /api/jobs/:id/apply   # Apply to job
 ## 🐛 Bug Reports & Feature Requests
 
 ### Bug Reports
-Please include:
+Please include :
 - Steps to reproduce
 - Expected behavior
 - Actual behavior
@@ -435,7 +435,7 @@ Please include:
 - Use case description
 - Proposed solution
 - Alternative solutions considered
-- Additional context
+- Additional context.
 
 ## 📚 Documentation
 
