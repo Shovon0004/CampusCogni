@@ -24,6 +24,10 @@ import aiCandidateCompareRoutes from './routes/ai-candidate-compare';
 import projectRoutes from './routes/projects';
 import experienceRoutes from './routes/experiences';
 import certificationRoutes from './routes/certifications';
+import verifiedSkillsRoutes from './routes/verified-skills';
+
+
+
 
 // Load environment variables
 dotenv.config()
