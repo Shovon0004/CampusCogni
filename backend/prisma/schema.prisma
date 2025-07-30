@@ -68,6 +68,7 @@ model Student {
   projects       Project[]
   experiences    Experience[]
   certifications Certification[]
+  verifiedSkills VerifiedSkill[]
   
   @@map("students")
 }
