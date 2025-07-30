@@ -8,6 +8,18 @@ class ApiClient {
     logApiConfig()
   }
 
+  // Verified Skills APIs
+  async getVerifiedSkills(studentId: string) {
+    return this.request(`/api/verified-skills/${studentId}`)
+  }
+
+  async addVerifiedSkill(studentId: string, skill: string) {
+    return this.request(`/api/verified-skills/${studentId}`, {
+      method: 'POST',
+      body: JSON.stringify({ skill }),
+    })
+  }
+
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`
     const token = localStorage.getItem('token')

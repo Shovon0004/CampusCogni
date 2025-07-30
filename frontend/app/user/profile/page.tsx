@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -81,6 +83,156 @@ interface Experience {
 }
 
 export default function UserProfilePage() {
+  // Skill verification state
+  const [verifiedSkills, setVerifiedSkills] = useState<string[]>([])
+  const [verifyingSkill, setVerifyingSkill] = useState<string | null>(null)
+  const [examModalOpen, setExamModalOpen] = useState(false)
+  // MCQ exam state
+  const [examQuestions, setExamQuestions] = useState<any[]>([])
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0)
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([])
+  const [examLoading, setExamLoading] = useState(false)
+  const [examResult, setExamResult] = useState<string | null>(null)
+  const [timer, setTimer] = useState(10)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Fetch verified skills from backend
+  const fetchVerifiedSkills = async () => {
+    if (!user?.id) return
+    try {
+      const res = await apiClient.getVerifiedSkills(user.id)
+      setVerifiedSkills(res.verifiedSkills || [])
+    } catch (e) {
+      setVerifiedSkills([])
+    }
+  }
+
+  // Save verified skills to backend
+  const saveVerifiedSkill = async (skill: string) => {
+    if (!user?.id) return
+    try {
+      const res = await apiClient.addVerifiedSkill(user.id, skill)
+      setVerifiedSkills(res.verifiedSkills || [])
+    } catch (e) {
+      // fallback: do nothing
+    }
+  }
+
+  // Start verification exam for a skill
+  const handleVerifySkill = async (skill: string) => {
+    setVerifyingSkill(skill)
+    setExamModalOpen(true)
+    setExamLoading(true)
+    setExamResult(null)
+    setExamQuestions([])
+    setSelectedAnswers([])
+    setCurrentQuestionIdx(0)
+    setTimer(10)
+    // Fetch 10 MCQ questions from API
+    try {
+      const res = await fetch("/api/skill-exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill })
+      })
+      const data = await res.json()
+      if (data.questions && Array.isArray(data.questions)) {
+        setExamQuestions(data.questions)
+        setSelectedAnswers(Array(data.questions.length).fill(-1))
+        setCurrentQuestionIdx(0)
+        setTimer(10)
+      } else {
+        setExamResult("Failed to load questions. Please try again.")
+      }
+    } catch (e) {
+      setExamResult("Failed to load questions. Please try again.")
+    }
+    setExamLoading(false)
+  }
+
+  // Submit exam answer
+  // Submit all answers for evaluation
+  const handleSubmitExam = async () => {
+    setExamLoading(true)
+    setExamResult(null)
+    if (!verifyingSkill) return
+    try {
+      const res = await fetch("/api/skill-exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skill: verifyingSkill,
+          questions: examQuestions,
+          answers: selectedAnswers
+        })
+      })
+      const data = await res.json()
+      if (data.passed) {
+        setExamResult("Congratulations! You have verified this skill.")
+        await saveVerifiedSkill(verifyingSkill)
+        // Ensure UI updates instantly for blue dot
+        setVerifiedSkills((prev) => prev.includes(verifyingSkill) ? prev : [...prev, verifyingSkill])
+      } else {
+        setExamResult("Sorry, you did not pass. Try again!")
+      }
+    } catch (e) {
+      setExamResult("Error submitting exam. Please try again.")
+    }
+    setExamLoading(false)
+  }
+
+  // Close modal
+  const handleCloseExam = () => {
+    setExamModalOpen(false)
+    setVerifyingSkill(null)
+    setExamQuestions([])
+    setSelectedAnswers([])
+    setCurrentQuestionIdx(0)
+    setExamResult(null)
+    setExamLoading(false)
+    setTimer(10)
+    if (timerRef.current) clearInterval(timerRef.current)
+  }
+
+  // Timer effect for each question
+  useEffect(() => {
+    if (!examModalOpen || examResult || examLoading || examQuestions.length === 0) return
+    setTimer(10)
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!)
+          handleNextQuestion(true)
+        return 10
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+    // eslint-disable-next-line
+  }, [currentQuestionIdx, examModalOpen, examQuestions.length])
+
+  // Move to next question or submit
+  const handleNextQuestion = (auto = false) => {
+    if (currentQuestionIdx < examQuestions.length - 1) {
+      setCurrentQuestionIdx((idx) => idx + 1)
+      setTimer(10)
+    } else {
+      handleSubmitExam()
+    }
+  }
+
+  // Select answer for current question
+  const handleSelectOption = (optionIdx: number) => {
+    const updated = [...selectedAnswers]
+    updated[currentQuestionIdx] = optionIdx
+    setSelectedAnswers(updated)
+    // Move to next after selection
+    setTimeout(() => handleNextQuestion(), 300)
+  }
   const { user, loading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -130,6 +282,48 @@ export default function UserProfilePage() {
     }
 
     fetchUserProfile()
+    fetchVerifiedSkills()
+
+  // Save verified skills to backend (stub: localStorage for demo, replace with real API)
+  const saveVerifiedSkill = async (skill: string) => {
+    const updated = [...verifiedSkills, skill]
+    setVerifiedSkills(updated)
+    localStorage.setItem(`verifiedSkills_${user?.id}`, JSON.stringify(updated))
+    // TODO: Call backend to persist
+  }
+
+  // (Obsolete single-question exam flow removed, as MCQ exam flow is used above)
+
+  // Submit exam answer
+  const handleSubmitExam = async () => {
+    setExamLoading(true)
+    setExamResult(null)
+    try {
+      const res = await fetch("/api/skill-exam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill: verifyingSkill, questions: examQuestions, answers: selectedAnswers })
+      })
+      const data = await res.json()
+      if (data.passed) {
+        setExamResult("Congratulations! You have verified this skill.")
+        if (verifyingSkill) await saveVerifiedSkill(verifyingSkill)
+      } else {
+        setExamResult("Sorry, your answer was not sufficient. Try again!")
+      }
+    } catch (e) {
+      setExamResult("Error submitting answer. Please try again.")
+    }
+    setExamLoading(false)
+  }
+
+  // Close modal
+  const handleCloseExam = () => {
+    setExamModalOpen(false)
+    setVerifyingSkill(null)
+    setExamResult(null)
+    setExamLoading(false)
+  }
   }, [user, loading, router])
 
   const fetchUserProfile = async () => {
@@ -658,15 +852,82 @@ export default function UserProfilePage() {
                 />
               ) : (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {profile.skills.map((skill) => (
-                    <Badge key={skill} variant="secondary" className="text-sm">
-                      {skill}
-                    </Badge>
-                  ))}
+                  {profile.skills.map((skill) => {
+                    const isVerified = verifiedSkills.includes(skill)
+                    return (
+                      <div key={skill} className="flex items-center gap-1">
+                        <Badge variant="secondary" className="text-sm flex items-center gap-1">
+                          <span>{skill}</span>
+                          {isVerified ? (
+                            <span title="Verified" className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 ml-1" />
+                          ) : (
+                            <span title="Unverified" className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 ml-1" />
+                          )}
+                        </Badge>
+                        {!isVerified && (
+                          <Button size="sm" variant="outline" className="ml-1 px-2 py-0.5 text-xs" onClick={() => handleVerifySkill(skill)}>
+                            Verify
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Skill Verification Exam Modal (MCQ) */}
+          <Dialog open={examModalOpen} onOpenChange={handleCloseExam}>
+            <DialogContent className="max-w-md select-none" onContextMenu={e => e.preventDefault()}>
+              <DialogHeader>
+                <DialogTitle>Skill Verification: {verifyingSkill}</DialogTitle>
+              </DialogHeader>
+              {examLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin h-6 w-6 text-blue-500" />
+                </div>
+              ) : examResult ? (
+                <div className="space-y-4">
+                  <p>{examResult}</p>
+                  <DialogFooter>
+                    <Button onClick={handleCloseExam}>Close</Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {examQuestions.length > 0 && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Question {currentQuestionIdx + 1} of {examQuestions.length}</span>
+                        <span className="text-sm font-mono bg-gray-200 dark:bg-gray-700 rounded px-2 py-1">{timer}s</span>
+                      </div>
+                      <div>
+                        <p className="font-medium mb-2">{examQuestions[currentQuestionIdx].question}</p>
+                        <div className="space-y-2">
+                          {examQuestions[currentQuestionIdx].options.map((opt: string, idx: number) => (
+                            <Button
+                              key={idx}
+                              variant={selectedAnswers[currentQuestionIdx] === idx ? "default" : "outline"}
+                              className="w-full text-left"
+                              onClick={() => handleSelectOption(idx)}
+                              disabled={selectedAnswers[currentQuestionIdx] !== -1}
+                            >
+                              {String.fromCharCode(65 + idx)}. {opt}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex justify-between mt-4">
+                        <span className="text-xs text-gray-500">Auto next in {timer}s</span>
+                        <span className="text-xs text-gray-500">Unanswered = skipped</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Links */}
           <Card className="mb-8 backdrop-blur-sm bg-background/95">
@@ -907,3 +1168,4 @@ export default function UserProfilePage() {
     </div>
   )
 }
+
