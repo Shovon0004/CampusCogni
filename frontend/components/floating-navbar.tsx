@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { motion } from "framer-motion"
@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { RandomThemeToggle } from "@/components/ui/random-theme-toggle"
-import { Menu, Briefcase, User, LogOut, Settings, Bell } from "lucide-react"
+import { Menu, Briefcase, User, LogOut, Settings, Bell, CheckCircle2 } from "lucide-react"
+import { fetchNotifications, markNotificationRead } from "@/lib/notification-api"
+import { useAuth } from "@/contexts/AuthContext"
 import { Badge } from "@/components/ui/badge"
 import { useUserProfile } from "@/hooks/use-user-profile"
 
@@ -30,6 +32,40 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [notifLoading, setNotifLoading] = useState(false)
+  const notifDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Get user from auth context
+  const { user } = useAuth()
+  // Fetch notifications for current user
+  useEffect(() => {
+    if (!user?.id) return;
+    setNotifLoading(true);
+    fetchNotifications(user.id).then((notifs) => {
+      setNotifications(notifs || []);
+      setNotifLoading(false);
+    });
+  }, [user, notifOpen])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!notifOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notifOpen]);
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  const handleMarkRead = async (id: string) => {
+    await markNotificationRead(id);
+    setNotifications((prev: any) => prev.map((n: any) => n.id === id ? { ...n, read: true } : n));
+  };
   
   // Get user profile data for avatar
   const { profileData } = useUserProfile()
@@ -159,12 +195,44 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
 
         <div className="flex items-center space-x-3">
           <RandomThemeToggle />
-          <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
-            <Bell className="h-4 w-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-primary">
-              3
-            </Badge>
-          </Button>
+
+          {/* Notification Bell and Dropdown */}
+          <div className="relative" ref={notifDropdownRef}>
+            <Button variant="ghost" size="icon" className="relative hover:bg-muted/50" onClick={() => setNotifOpen((v) => !v)}>
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-primary">
+                  {unreadCount}
+                </Badge>
+              )}
+            </Button>
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-80 max-h-96 bg-background border border-border/50 rounded-xl shadow-xl z-50 overflow-y-auto animate-in fade-in slide-in-from-top-2 p-2">
+                <div className="font-semibold text-base px-2 py-1">Notifications</div>
+                {notifLoading ? (
+                  <div className="p-4 text-center text-muted-foreground">Loading...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">No notifications</div>
+                ) : (
+                  notifications.map((notif: any) => (
+                    <div key={notif.id} className={`flex items-start gap-2 px-2 py-2 rounded-lg mb-1 ${notif.read ? 'bg-muted/30' : 'bg-primary/10'}`}>
+                      <div className="flex-shrink-0 pt-1">
+                        {notif.read ? <CheckCircle2 className="h-5 w-5 text-muted-foreground" /> : <Bell className="h-5 w-5 text-primary" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{notif.title}</div>
+                        <div className="text-xs text-muted-foreground">{notif.message}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1">{new Date(notif.createdAt).toLocaleString()}</div>
+                      </div>
+                      {!notif.read && (
+                        <button className="ml-2 text-xs text-primary underline" onClick={() => handleMarkRead(notif.id)}>Mark as read</button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

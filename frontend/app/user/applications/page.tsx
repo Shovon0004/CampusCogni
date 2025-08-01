@@ -13,6 +13,7 @@ import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api"
+import { createNotification } from "@/lib/notification-api"
 import { 
   Briefcase, 
   MapPin, 
@@ -90,6 +91,37 @@ export default function UserApplicationsPage() {
         hired: transformedApplications.filter(app => app.status === 'HIRED').length
       }
 
+      // Check for status changes and notify
+      const prevStatuses = JSON.parse(localStorage.getItem('prev_app_statuses_' + user!.id) || '{}')
+      for (const app of transformedApplications) {
+        const prev = prevStatuses[app.id]
+        if (prev && prev !== app.status) {
+          let notifTitle = '', notifMsg = '';
+          if (app.status === 'SHORTLISTED') {
+            notifTitle = 'Shortlisted for Job';
+            notifMsg = `You have been shortlisted for ${app.jobTitle} at ${app.company}.`;
+          } else if (app.status === 'INTERVIEW_SCHEDULED') {
+            notifTitle = 'Interview Scheduled';
+            notifMsg = `Your interview is scheduled for ${app.jobTitle} at ${app.company}.`;
+          } else if (app.status === 'REJECTED') {
+            notifTitle = 'Application Rejected';
+            notifMsg = `You were not selected for ${app.jobTitle} at ${app.company}.`;
+          } else if (app.status === 'HIRED') {
+            notifTitle = 'Congratulations! Hired';
+            notifMsg = `You have been hired for ${app.jobTitle} at ${app.company}.`;
+          }
+          if (notifTitle) {
+            await createNotification({
+              userId: user!.id,
+              title: notifTitle,
+              message: notifMsg,
+              type: 'JOB'
+            });
+          }
+        }
+        prevStatuses[app.id] = app.status;
+      }
+      localStorage.setItem('prev_app_statuses_' + user!.id, JSON.stringify(prevStatuses));
       setApplications(transformedApplications)
       setStats(stats)
     } catch (error) {

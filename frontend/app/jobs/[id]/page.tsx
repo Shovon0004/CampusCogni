@@ -13,6 +13,7 @@ import { FloatingNavbar } from '@/components/floating-navbar'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { cachedApiClient } from '@/lib/cached-api-client'
+import { createNotification } from '@/lib/notification-api'
 import { 
   Briefcase, 
   MapPin, 
@@ -135,11 +136,17 @@ export default function JobDetailsPage() {
       setApplying(true)
       await cachedApiClient.applyToJob(id as string, user.id)
       setHasApplied(true)
-      
       toast({
         title: "Application Submitted",
         description: "Your application has been submitted successfully!",
       })
+      // Add notification for job application
+      await createNotification({
+        userId: user.id,
+        title: "Job Application Submitted",
+        message: `You applied to the job: ${job?.title || 'Job'}`,
+        type: "JOB"
+      });
     } catch (error: any) {
       console.error('Failed to apply to job:', error)
       

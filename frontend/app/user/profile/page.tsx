@@ -20,6 +20,7 @@ import { FloatingNavbar } from "@/components/floating-navbar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api"
+import { createNotification } from "@/lib/notification-api"
 import { 
   User, 
   Mail, 
@@ -427,6 +428,15 @@ export default function UserProfilePage() {
         title: "Success",
         description: "Profile updated successfully"
       })
+      // Add notification for profile update
+      if (user?.id) {
+        await createNotification({
+          userId: user.id,
+          title: "Profile Updated",
+          message: "Your profile was updated successfully.",
+          type: "PROFILE"
+        });
+      }
     } catch (error) {
       console.error("Error saving profile:", error)
       toast({
@@ -1168,4 +1178,3 @@ export default function UserProfilePage() {
     </div>
   )
 }
-
