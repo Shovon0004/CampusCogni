@@ -27,7 +27,7 @@ interface FloatingNavbarProps {
   userAvatar?: string
 }
 
-export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavbarProps) {
+export function FloatingNavbar({ userRole: propUserRole, userName: propUserName, userAvatar: propUserAvatar }: FloatingNavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
@@ -38,7 +38,12 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
   const notifDropdownRef = useRef<HTMLDivElement>(null)
 
   // Get user from auth context
-  const { user } = useAuth()
+  const { user, loading, logout } = useAuth()
+  
+  // Use auth context data with fallback to props
+  const userRole = user?.role || propUserRole
+  const userName = user?.email || propUserName
+  const userAvatar = propUserAvatar
   // Fetch notifications for current user
   useEffect(() => {
     if (!user?.id) return;
@@ -83,6 +88,7 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
   }, [])
 
   const handleLogout = () => {
+    logout()
     router.push("/")
   }
 
@@ -137,7 +143,36 @@ export function FloatingNavbar({ userRole, userName, userAvatar }: FloatingNavba
     </>
   )
 
-  if (!userRole) {
+  if (loading) {
+    // Show a loading state while auth is being determined
+    return (
+      <motion.nav
+        className={`fixed top-4 left-4 right-4 z-50 transition-all duration-300 ${
+          scrolled ? "bg-background/80 backdrop-blur-xl border border-border/50 shadow-lg" : "bg-transparent"
+        } rounded-2xl`}
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-2 group">
+            <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+              <Briefcase className="h-6 w-6 text-primary" />
+            </motion.div>
+            <span className="font-bold text-xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              CampusCogni
+            </span>
+          </Link>
+          <div className="flex items-center space-x-3">
+            <RandomThemeToggle />
+            <div className="w-16 h-8 bg-muted/50 rounded animate-pulse" />
+          </div>
+        </div>
+      </motion.nav>
+    )
+  }
+
+  if (!user || !userRole) {
     return (
       <motion.nav
         className={`fixed top-4 left-4 right-4 z-50 transition-all duration-300 ${
