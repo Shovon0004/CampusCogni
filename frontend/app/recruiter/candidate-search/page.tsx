@@ -17,6 +17,19 @@ import MinimalCandidateChat from "./minimal-chat";
 import "./improved-carousel.css"
 import "./navigation-styles.css"
 import "./minimal-chat.css"
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type { ColumnDef } from '@/components/ui/kibo-ui/table';
+import {
+  TableBody,
+  TableCell,
+  TableColumnHeader,
+  TableHead,
+  TableHeader,
+  TableHeaderGroup,
+  TableProvider,
+  TableRow,
+} from '@/components/ui/kibo-ui/table';
+import { ChevronRightIcon, Grid3X3, List, Table } from 'lucide-react';
 
 export default function CandidateSearchPage() {
   const { user } = useAuth()
@@ -38,6 +51,7 @@ export default function CandidateSearchPage() {
   const [typing, setTyping] = useState(false);
   const [selectedCandidates, setSelectedCandidates] = useState<any[]>([]);
   const [showCarousel, setShowCarousel] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'carousel' | 'table'>('grid');
 
   // Helper to generate dynamic reasoning steps based on prompt
   const getReasoningSteps = (prompt: string) => {
@@ -165,7 +179,7 @@ export default function CandidateSearchPage() {
   const hasAnyProfiles = sortedMatches.length > 0 || suggested.length > 0;
 
   // Helper to get profile image (placeholder for now)
-  const getProfileImage = (candidate: any) => "/placeholder-user.jpg";
+  const getProfileImage = (candidate: any) => candidate.profilePic || "/placeholder-user.jpg";
 
   // Helper to get features (AI key points)
   const getFeatures = (candidate: any) => {
@@ -179,6 +193,147 @@ export default function CandidateSearchPage() {
     }
     return [];
   };
+
+  // Table columns definition for candidate data
+  const candidateColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <TableColumnHeader column={column} title="Candidate" />
+      ),
+      cell: ({ row }) => {
+        const candidate = row.original;
+        const key = `${candidate.name || 'candidate'}-${row.index}`;
+        const isSelected = selectedCandidates.some(c => 
+          c.name === candidate.name || (c.id && c.id === candidate.id)
+        );
+        
+        return (
+          <div className="flex items-center gap-3">
+            <input 
+              type="checkbox" 
+              checked={isSelected}
+              onChange={() => {
+                if (isSelected) {
+                  setSelectedCandidates(prev => prev.filter(c => 
+                    c.name !== candidate.name && (!c.id || c.id !== candidate.id)
+                  ));
+                } else {
+                  setSelectedCandidates(prev => [...prev, candidate]);
+                }
+              }}
+              className="h-4 w-4 accent-[#ff3f17]"
+            />
+            <div className="relative">
+              <Avatar className="size-8">
+                <AvatarImage src={getProfileImage(candidate)} />
+                <AvatarFallback>
+                  {candidate.name?.slice(0, 2) || 'C'}
+                </AvatarFallback>
+              </Avatar>
+              <div
+                className="absolute right-0 bottom-0 h-2 w-2 rounded-full ring-2 ring-background bg-green-500"
+              />
+            </div>
+            <div>
+              <span className="font-medium">{candidate.name || 'Unnamed Candidate'}</span>
+              <div className="text-muted-foreground text-xs">
+                {candidate.email || 'No email provided'}
+              </div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'skills',
+      header: ({ column }) => (
+        <TableColumnHeader column={column} title="Skills" />
+      ),
+      cell: ({ row }) => {
+        const skills = row.original.skills;
+        if (Array.isArray(skills)) {
+          return (
+            <div className="flex flex-wrap gap-1">
+              {skills.slice(0, 3).map((skill: string, idx: number) => (
+                <span key={idx} className="inline-block px-2 py-1 text-xs bg-secondary rounded-md">
+                  {skill}
+                </span>
+              ))}
+              {skills.length > 3 && (
+                <span className="text-xs text-muted-foreground">+{skills.length - 3} more</span>
+              )}
+            </div>
+          );
+        }
+        return <span className="text-muted-foreground text-sm">No skills listed</span>;
+      },
+    },
+    {
+      accessorKey: 'experience',
+      header: ({ column }) => (
+        <TableColumnHeader column={column} title="Experience" />
+      ),
+      cell: ({ row }) => {
+        const candidate = row.original;
+        const experience = candidate.experience || candidate.workExperience;
+        
+        if (Array.isArray(experience) && experience.length > 0) {
+          const latestExp = experience[0];
+          return (
+            <div>
+              <div className="font-medium text-sm">{latestExp.role || latestExp.position}</div>
+              <div className="text-muted-foreground text-xs">
+                {latestExp.company} • {latestExp.duration || latestExp.startDate}
+              </div>
+            </div>
+          );
+        }
+        
+        return <span className="text-muted-foreground text-sm">No experience listed</span>;
+      },
+    },
+    {
+      accessorKey: 'match',
+      header: ({ column }) => (
+        <TableColumnHeader column={column} title="Match %" />
+      ),
+      cell: ({ row }) => {
+        const match = row.original.match || row.original.matchPercentage || row.original.match_percent || 0;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${match}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium">{match}%</span>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'education',
+      accessorFn: (row) => row.education,
+      header: ({ column }) => (
+        <TableColumnHeader column={column} title="Education" />
+      ),
+      cell: ({ row }) => {
+        const education = row.original.education;
+        if (Array.isArray(education) && education.length > 0) {
+          const latest = education[0];
+          return (
+            <div>
+              <div className="font-medium text-sm">{latest.degree}</div>
+              <div className="text-muted-foreground text-xs">{latest.institution}</div>
+            </div>
+          );
+        }
+        return <span className="text-muted-foreground text-sm">No education listed</span>;
+      },
+    },
+  ];
 
   // Helper to fetch and cache AI summary for a candidate
   const fetchSummary = async (candidate: any, prompt: string, key: string) => {
@@ -230,22 +385,31 @@ export default function CandidateSearchPage() {
                 <div className="flex justify-center mb-6">
                   <div className="inline-flex rounded-md shadow-sm" role="group">
                     <button
-                      onClick={() => setShowCarousel(false)}
-                      className={`px-4 py-2 text-sm font-medium border rounded-l-lg ${!showCarousel ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                      onClick={() => setViewMode('grid')}
+                      className={`px-4 py-2 text-sm font-medium border rounded-l-lg flex items-center gap-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
                     >
+                      <Grid3X3 className="w-4 h-4" />
                       Grid View
                     </button>
                     <button
-                      onClick={() => setShowCarousel(true)}
-                      className={`px-4 py-2 text-sm font-medium border rounded-r-lg ${showCarousel ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                      onClick={() => setViewMode('carousel')}
+                      className={`px-4 py-2 text-sm font-medium border-t border-b flex items-center gap-2 ${viewMode === 'carousel' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
                     >
+                      <List className="w-4 h-4" />
                       Carousel View
+                    </button>
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`px-4 py-2 text-sm font-medium border rounded-r-lg flex items-center gap-2 ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                    >
+                      <Table className="w-4 h-4" />
+                      Table View
                     </button>
                   </div>
                 </div>
                 
                 {/* Candidate display based on view mode */}
-                {showCarousel ? (
+                {viewMode === 'carousel' ? (
                   <div className="mb-8">
                     <CardCarousel
                       candidates={sortedMatches}
@@ -253,6 +417,27 @@ export default function CandidateSearchPage() {
                       showNavigation={true}
                       showPagination={true}
                     />
+                  </div>
+                ) : viewMode === 'table' ? (
+                  <div className="w-full max-w-7xl mx-auto mb-8">
+                    <div className="rounded-lg border bg-card shadow-sm">
+                      <TableProvider columns={candidateColumns} data={sortedMatches}>
+                        <TableHeader>
+                          {({ headerGroup }) => (
+                            <TableHeaderGroup headerGroup={headerGroup} key={headerGroup.id}>
+                              {({ header }) => <TableHead header={header} key={header.id} />}
+                            </TableHeaderGroup>
+                          )}
+                        </TableHeader>
+                        <TableBody>
+                          {({ row }) => (
+                            <TableRow key={row.id} row={row}>
+                              {({ cell }) => <TableCell cell={cell} key={cell.id} />}
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </TableProvider>
+                    </div>
                   </div>
                 ) : (
                   <div className="w-full max-w-5xl mx-auto">
