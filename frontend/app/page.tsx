@@ -11,6 +11,7 @@ import { FlipLink } from "@/components/flip-link"
 import { CampusCogniFeatureDemo } from "@/components/ui/campus-cogni-feature-demo"
 import { Users, Briefcase, TrendingUp, Shield, ArrowRight, Sparkles, Star } from "lucide-react"
 import Marquee from "react-fast-marquee"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Extract FloatingPaths component from KokonutUI
 function FloatingPaths({ position }: { position: number }) {
@@ -57,6 +58,32 @@ function FloatingPaths({ position }: { position: number }) {
 }
 
 export default function HomePage() {
+  const { user, loading } = useAuth()
+
+  // Determine the appropriate dashboard link based on user role
+  const getDashboardLink = () => {
+    if (!user) return "/auth"
+    
+    if (user.role === "RECRUITER") return "/recruiter/dashboard"
+    if (user.role === "BOTH") {
+      // For BOTH role, check current preference or default to user dashboard
+      // You could store last visited dashboard in localStorage or user preferences
+      const lastDashboard = typeof window !== 'undefined' ? localStorage.getItem('lastDashboard') : null
+      return lastDashboard || "/user/dashboard"
+    }
+    return "/user/dashboard" // Default for USER role
+  }
+
+  const getButtonText = () => {
+    if (loading) return "Loading..."
+    if (user) {
+      if (user.role === "BOTH") return "Go to Dashboard"
+      if (user.role === "RECRUITER") return "Go to Recruiter Dashboard"
+      return "Go to Dashboard"
+    }
+    return "Join the Community"
+  }
+
   return (
     <div className="min-h-screen overflow-x-hidden relative">
       {/* Background Paths Animation restored to original position */}
@@ -134,8 +161,8 @@ export default function HomePage() {
                       size="lg"
                       className="text-lg px-8 py-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 border-0"
                     >
-                      <Link href="/auth" className="flex items-center gap-2 group">
-                        Join the Community
+                      <Link href={getDashboardLink()} className="flex items-center gap-2 group">
+                        {getButtonText()}
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </Link>
                     </Button>
@@ -196,8 +223,8 @@ export default function HomePage() {
                       size="lg"
                       className="text-lg px-8 py-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/90"
                     >
-                      <Link href="/auth" className="flex items-center gap-2">
-                        Get Started Today
+                      <Link href={getDashboardLink()} className="flex items-center gap-2">
+                        {user ? "Go to Dashboard" : "Get Started Today"}
                         <ArrowRight className="w-4 h-4" />
                       </Link>
                     </Button>
